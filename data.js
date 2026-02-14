@@ -1,7 +1,7 @@
 // ===== Test Data for ATS WorkHere =====
 
 // Departments
-const departments = [
+let departments = [
     { id: 1, name: 'Разработка', color: '#4f46e5' },
     { id: 2, name: 'Продукт', color: '#7c3aed' },
     { id: 3, name: 'Дизайн', color: '#db2777' },
@@ -12,7 +12,7 @@ const departments = [
 ];
 
 // Hiring Managers
-const hiringManagers = [
+let hiringManagers = [
     { id: 1, name: 'Алексей Петров', role: 'Tech Lead', department: 1, avatar: 'https://i.pravatar.cc/40?img=11' },
     { id: 2, name: 'Ольга Смирнова', role: 'HR Director', department: 6, avatar: 'https://i.pravatar.cc/40?img=5' },
     { id: 3, name: 'Дмитрий Козлов', role: 'CTO', department: 1, avatar: 'https://i.pravatar.cc/40?img=12' },
@@ -22,7 +22,7 @@ const hiringManagers = [
 ];
 
 // Vacancies
-const vacancies = [
+let vacancies = [
     {
         id: 1,
         title: 'Senior Frontend Developer',
@@ -351,7 +351,7 @@ const vacancies = [
 ];
 
 // Candidates
-const candidates = [
+let candidates = [
     // For vacancy 1: Senior Frontend Developer
     {
         id: 1,
@@ -825,7 +825,7 @@ const candidates = [
 ];
 
 // Interviews
-const interviews = [
+let interviews = [
     {
         id: 1,
         candidateId: 4,
@@ -920,7 +920,7 @@ const interviews = [
 ];
 
 // Offers
-const offers = [
+let offers = [
     {
         id: 1,
         candidateId: 1,
@@ -999,7 +999,7 @@ const offers = [
 ];
 
 // Talent Pool
-const talentPool = [
+let talentPool = [
     {
         id: 1,
         candidateId: 13,
@@ -1043,7 +1043,7 @@ const talentPool = [
 ];
 
 // Notifications
-const notifications = [
+let notifications = [
     {
         id: 1,
         type: 'urgent',
@@ -1117,7 +1117,7 @@ const notifications = [
 ];
 
 // Priority Tasks for Dashboard
-const priorityTasks = [
+let priorityTasks = [
     {
         id: 1,
         type: 'urgent',
@@ -1178,7 +1178,7 @@ const priorityTasks = [
 ];
 
 // Activity Feed
-const activityFeed = [
+let activityFeed = [
     {
         id: 1,
         userId: 1,

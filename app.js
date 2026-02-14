@@ -14,6 +14,126 @@ function ava(name, size) {
     return `<div class="avatar" style="width:${size}px;height:${size}px;background:${AVA_COLORS[idx]};font-size:${Math.round(size * 0.38)}px">${initials}</div>`;
 }
 
+// ===== API Layer =====
+let useAPI = false; // set true when API is available
+
+const api = {
+    async get(path) { const r = await fetch('/api' + path); if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); },
+    async post(path, data) { const r = await fetch('/api' + path, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); },
+};
+
+// Map API responses to frontend format
+function mapVacancy(v) {
+    return {
+        id: v.id, title: v.title, department: v.department_id,
+        managerId: v.manager_id, status: v.status, priority: v.priority, urgent: v.urgent,
+        salary: { min: v.salary_min, max: v.salary_max, currency: 'RUB' },
+        location: v.location || '', workFormat: v.work_format, description: v.description || '',
+        requirements: typeof v.requirements === 'string' ? JSON.parse(v.requirements) : (v.requirements || []),
+        niceToHave: typeof v.nice_to_have === 'string' ? JSON.parse(v.nice_to_have) : (v.nice_to_have || []),
+        createdAt: v.created_at, deadline: v.deadline,
+        candidatesCount: v.candidates_count || 0, stages: v.stages || {},
+        _managerName: v.manager_first_name ? `${v.manager_first_name} ${v.manager_last_name}` : '',
+        _managerRole: v.manager_role || '', _deptName: v.department_name || '', _deptColor: v.department_color || '#6366f1',
+    };
+}
+
+function mapCandidate(c) {
+    return {
+        id: c.id, firstName: c.first_name, lastName: c.last_name,
+        email: c.email || '', phone: c.phone || '', telegram: c.telegram || '', linkedin: c.linkedin || '',
+        location: c.location || '', currentCompany: c.current_company || '', experience: c.experience || '',
+        skills: typeof c.skills === 'string' ? JSON.parse(c.skills) : (c.skills || []),
+        salaryExpectation: c.salary_expectation || '', source: c.source || 'direct',
+        referrer: c.referrer || '', inTalentPool: c.in_talent_pool || false,
+        vacancyId: c.vacancy_id, stage: c.stage || 'new', urgent: c.urgent || false,
+        rating: c.rating || 0, nextStep: c.next_step || '', nextStepDue: c.next_step_due || '',
+        daysInStage: c.days_in_stage || 0, createdAt: c.created_at, updatedAt: c.updated_at,
+        _vacancyTitle: c.vacancy_title || '', _applicationId: c.application_id,
+        notes: (c.notes || []).map(n => ({ id: n.id, text: n.content, author: `${n.author_first||''} ${n.author_last||''}`.trim(), date: n.created_at })),
+        feedbacks: (c.feedbacks || []).map(f => ({ id: f.id, interviewerId: f.user_id, rating: f.rating, recommendation: f.recommendation, strengths: f.strengths, weaknesses: f.weaknesses, comment: f.comment, date: f.submitted_at })),
+        timeline: [], // will build from activity log later
+    };
+}
+
+function mapInterview(iv) {
+    return {
+        id: iv.id, candidateId: iv.candidate_id, vacancyId: iv.vacancy_id,
+        type: iv.interview_type, date: iv.scheduled_date, time: iv.scheduled_time,
+        duration: iv.duration_minutes, format: iv.format, status: iv.status, notes: iv.notes,
+        interviewers: (iv.interviewers || []).map(i => i.id),
+        _candidateName: iv.first_name ? `${iv.first_name} ${iv.last_name}` : '',
+        _vacancyTitle: iv.vacancy_title || '',
+        _interviewerDetails: iv.interviewers || [],
+    };
+}
+
+function mapOffer(o) {
+    return {
+        id: o.id, candidateId: o.candidate_id, vacancyId: o.vacancy_id,
+        status: o.status, salary: o.salary || '', bonus: o.bonus || '',
+        startDate: o.start_date, expiryDate: o.expiry_date,
+        workFormat: o.work_format || 'hybrid', benefits: o.benefits || '',
+        probation: o.probation_months || 3, approvalStatus: typeof o.approval_status === 'string' ? JSON.parse(o.approval_status) : (o.approval_status || {}),
+        createdAt: o.created_at,
+        _candidateName: o.first_name ? `${o.first_name} ${o.last_name}` : '',
+        _vacancyTitle: o.vacancy_title || '',
+    };
+}
+
+async function loadAllData() {
+    try {
+        const [apiVacs, apiCands, apiIvs, apiOffs, apiDepts, apiUsers, apiStages] = await Promise.all([
+            api.get('/vacancies'), api.get('/candidates'), api.get('/interviews'),
+            api.get('/offers'), api.get('/departments'), api.get('/users'), api.get('/pipeline-stages'),
+        ]);
+        vacancies = apiVacs.map(mapVacancy);
+        candidates = apiCands.map(mapCandidate);
+        interviews = apiIvs.map(mapInterview);
+        offers = apiOffs.map(mapOffer);
+        departments = apiDepts.map(d => ({ id: d.id, name: d.name, color: d.color }));
+        hiringManagers = apiUsers.filter(u => u.role !== 'recruiter').map(u => ({ id: u.id, name: `${u.first_name} ${u.last_name}`, role: u.role }));
+        // Keep pipelineStages, sources from data.js (config data)
+        useAPI = true;
+        console.log('API data loaded:', { vacancies: vacancies.length, candidates: candidates.length, interviews: interviews.length, offers: offers.length });
+    } catch (e) {
+        console.warn('API unavailable, using static data:', e.message);
+        useAPI = false;
+    }
+}
+
+async function reloadCandidates() {
+    if (!useAPI) return;
+    try {
+        const apiCands = await api.get('/candidates');
+        candidates = apiCands.map(mapCandidate);
+    } catch(e) { console.warn('Failed to reload candidates:', e); }
+}
+
+async function reloadVacancies() {
+    if (!useAPI) return;
+    try {
+        const apiVacs = await api.get('/vacancies');
+        vacancies = apiVacs.map(mapVacancy);
+    } catch(e) { console.warn('Failed to reload vacancies:', e); }
+}
+
+async function reloadInterviews() {
+    if (!useAPI) return;
+    try {
+        const apiIvs = await api.get('/interviews');
+        interviews = apiIvs.map(mapInterview);
+    } catch(e) { console.warn('Failed to reload interviews:', e); }
+}
+
+async function reloadOffers() {
+    if (!useAPI) return;
+    try {
+        const apiOffs = await api.get('/offers');
+        offers = apiOffs.map(mapOffer);
+    } catch(e) { console.warn('Failed to reload offers:', e); }
+}
+
 // ===== State =====
 let currentPage = 'dashboard';
 let selectedVacancyId = null;
@@ -21,13 +141,15 @@ let selectedCandidateId = null;
 let draggedCandidateId = null;
 
 // ===== Init =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     initNavigation();
     initModals();
     initPanels();
     initForms();
     renderSidebarUser();
+    // Try loading from API
+    await loadAllData();
     renderDashboard();
 });
 
@@ -369,14 +491,13 @@ function renderBulkBar() {
     </div>`;
 }
 
-function bulkMoveStage(stage) {
+async function bulkMoveStage(stage) {
     const ids = [...selectedIds];
-    ids.forEach(id => {
-        const c = candidates.find(x=>x.id===id); if(!c) return;
-        const os = c.stage; c.stage = stage; c.daysInStage = 0; c.updatedAt = new Date().toISOString().split('T')[0];
-        if (!c.timeline) c.timeline = [];
-        c.timeline.push({ date: c.updatedAt, event: getStageLabel(stage), type: 'stage', description: `${getStageLabel(os)} → ${getStageLabel(stage)} (bulk)` });
-    });
+    if (useAPI) {
+        try { await api.post('/candidates/bulk-move', { candidate_ids: ids, stage: stage }); await reloadCandidates(); } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+    } else {
+        ids.forEach(id => { const c = candidates.find(x=>x.id===id); if(c){c.stage=stage;c.daysInStage=0;} });
+    }
     showToast('success', 'Массовое действие', `${ids.length} кандидатов → ${getStageLabel(stage)}`);
     selectedIds.clear(); renderCandidates();
 }
@@ -386,12 +507,13 @@ function bulkMoveStagePrompt() {
     if (stage && getStageLabel(stage) !== stage) bulkMoveStage(stage);
 }
 
-function bulkReject() {
+async function bulkReject() {
     const ids = [...selectedIds];
-    ids.forEach(id => {
-        const c = candidates.find(x=>x.id===id); if(!c) return;
-        c.stage = 'rejected'; c.updatedAt = new Date().toISOString().split('T')[0];
-    });
+    if (useAPI) {
+        try { await api.post('/candidates/bulk-reject', { candidate_ids: ids }); await reloadCandidates(); } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+    } else {
+        ids.forEach(id => { const c = candidates.find(x=>x.id===id); if(c) c.stage='rejected'; });
+    }
     showToast('success', 'Массовый отказ', `${ids.length} кандидатов отклонены`);
     selectedIds.clear(); renderCandidates();
 }
@@ -473,9 +595,11 @@ function initDnD() {
         const col = e.target.closest('.kanban-column'); if (!col || !draggedCandidateId) return;
         const ns = col.dataset.stage; const cand = candidates.find(c => c.id === draggedCandidateId);
         if (!cand || cand.stage === ns) return;
-        const os = cand.stage; cand.stage = ns; cand.daysInStage = 0; cand.updatedAt = new Date().toISOString().split('T')[0];
-        if (!cand.timeline) cand.timeline = [];
-        cand.timeline.push({ date: cand.updatedAt, event: getStageLabel(ns), type: 'stage', description: `${getStageLabel(os)} → ${getStageLabel(ns)}` });
+        const os = cand.stage;
+        if (useAPI) {
+            api.post(`/candidates/${cand.id}/move-stage`, { stage: ns }).then(() => reloadCandidates()).catch(err => showToast('error', 'Ошибка', err.message));
+        }
+        cand.stage = ns; cand.daysInStage = 0;
         showToast('success', 'Этап изменен', `${cand.firstName} ${cand.lastName} → ${getStageLabel(ns)}`);
         const sel = document.getElementById('pipelineVacancySelect'); const fv = sel ? sel.value : '';
         let filtered = candidates.filter(c => c.stage !== 'rejected' && c.stage !== 'hired');
@@ -584,7 +708,14 @@ function renderOffers() {
 }
 function getOfferStatusLabel(s) { return { pending:'Согласование', sent:'Отправлен', accepted:'Принят', rejected:'Отклонен', expired:'Истек' }[s] || s; }
 function getWorkFormatLabel(f) { return { office:'Офис', remote:'Удаленно', hybrid:'Гибрид' }[f] || f; }
-function updateOfferStatus(id, ns) { const o = offers.find(x => x.id === id); if (o) { o.status = ns; renderOffers(); showToast('success', 'Статус обновлен', getOfferStatusLabel(ns)); } }
+async function updateOfferStatus(id, ns) {
+    if (useAPI) {
+        try { await api.post(`/offers/${id}/status?status=${ns}`, {}); await reloadOffers(); } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+    } else {
+        const o = offers.find(x => x.id === id); if (o) o.status = ns;
+    }
+    renderOffers(); showToast('success', 'Статус обновлен', getOfferStatusLabel(ns));
+}
 
 // ===== Analytics =====
 function renderAnalytics() {
@@ -727,7 +858,22 @@ function openCandidateModal(id) {
 }
 
 function getRecommendationLabel(r) { return { hire:'Нанять', next_stage:'След. этап', hold:'Отложить', reject:'Отказать' }[r] || r; }
-function addNote(id) { const inp = document.getElementById('newNoteInput'); const t = inp.value.trim(); if (!t) return; const c = candidates.find(x => x.id === id); if (c) { if (!c.notes) c.notes = []; c.notes.unshift({ id: Date.now(), text: t, author: 'Мария Иванова', date: new Date().toISOString().split('T')[0] }); inp.value = ''; openCandidateModal(id); showToast('success', 'Заметка', 'Добавлена'); } }
+async function addNote(id) {
+    const inp = document.getElementById('newNoteInput'); const t = inp.value.trim(); if (!t) return;
+    if (useAPI) {
+        try {
+            await api.post(`/candidates/${id}/notes`, { content: t });
+            // Reload candidate detail
+            const apiC = await api.get(`/candidates/${id}`);
+            const idx = candidates.findIndex(x => x.id === id);
+            if (idx >= 0) candidates[idx] = mapCandidate(apiC);
+        } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+    } else {
+        const c = candidates.find(x => x.id === id);
+        if (c) { if (!c.notes) c.notes = []; c.notes.unshift({ id: Date.now(), text: t, author: 'Мария Иванова', date: new Date().toISOString().split('T')[0] }); }
+    }
+    inp.value = ''; openCandidateModal(id); showToast('success', 'Заметка', 'Добавлена');
+}
 
 // ===== Modals =====
 function initModals() {
@@ -776,13 +922,117 @@ function handleNotificationClick(id) {
 
 // ===== Forms =====
 function initForms() {
-    document.getElementById('addCandidateForm').addEventListener('submit', e => { e.preventDefault(); const fd = new FormData(e.target); const nc = { id: candidates.length + 100, firstName: fd.get('firstName'), lastName: fd.get('lastName'), email: fd.get('email'), phone: fd.get('phone'), vacancyId: parseInt(fd.get('vacancyId')), stage: 'new', source: fd.get('source'), salaryExpectation: fd.get('salaryExpectation'), skills: [], experience: '', createdAt: new Date().toISOString().split('T')[0], updatedAt: new Date().toISOString().split('T')[0], daysInStage: 0, rating: 0, inTalentPool: false, notes: fd.get('notes') ? [{ id: 1, text: fd.get('notes'), author: 'Мария Иванова', date: new Date().toISOString().split('T')[0] }] : [], timeline: [{ date: new Date().toISOString().split('T')[0], event: 'Добавлен', type: 'created', description: 'Добавлен в систему' }], feedbacks: [] }; candidates.push(nc); closeModal('addCandidateModal'); e.target.reset(); showToast('success', 'Добавлен', `${nc.firstName} ${nc.lastName}`); if (currentPage === 'candidates') renderCandidates(); else if (currentPage === 'pipeline') renderPipeline(); });
-    document.getElementById('scheduleInterviewForm').addEventListener('submit', e => { e.preventDefault(); const fd = new FormData(e.target); const cid = parseInt(fd.get('candidateId')); const c = candidates.find(x => x.id === cid); interviews.push({ id: interviews.length + 100, candidateId: cid, vacancyId: c.vacancyId, type: fd.get('interviewType'), date: fd.get('date'), time: fd.get('time'), duration: parseInt(fd.get('duration')), format: fd.get('format'), interviewers: fd.getAll('interviewers').map(i => parseInt(i)), status: 'scheduled', notes: fd.get('notes') }); closeModal('scheduleInterviewModal'); e.target.reset(); showToast('success', 'Интервью', `Назначено на ${formatDate(fd.get('date'))}`); if (currentPage === 'interviews') renderInterviews(); });
-    document.getElementById('feedbackForm').addEventListener('submit', e => { e.preventDefault(); const fd = new FormData(e.target); const c = candidates.find(x => x.id === parseInt(fd.get('candidateId'))); if (!c.feedbacks) c.feedbacks = []; c.feedbacks.push({ id: Date.now(), interviewerId: 1, rating: parseInt(fd.get('rating')), recommendation: fd.get('recommendation'), strengths: fd.get('strengths'), weaknesses: fd.get('weaknesses'), comment: fd.get('comment'), date: new Date().toISOString().split('T')[0] }); closeModal('feedbackModal'); e.target.reset(); showToast('success', 'Фидбек', 'Сохранен'); });
-    document.getElementById('rejectForm').addEventListener('submit', e => { e.preventDefault(); const fd = new FormData(e.target); const c = candidates.find(x => x.id === parseInt(fd.get('candidateId'))); c.stage = 'rejected'; c.rejectionReason = fd.get('reason'); if (fd.get('addToPool')) { c.inTalentPool = true; talentPool.push({ id: talentPool.length + 100, candidateId: c.id, reason: fd.get('details') || 'Для будущих вакансий', addedAt: new Date().toISOString().split('T')[0], tags: c.skills.slice(0, 3), lastContactAt: new Date().toISOString().split('T')[0], nextContactAt: new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0] }); } closeModal('rejectModal'); e.target.reset(); showToast('success', 'Отказ', `${c.firstName} ${c.lastName}`); if (currentPage === 'candidates') renderCandidates(); else if (currentPage === 'pipeline') renderPipeline(); });
-    document.getElementById('offerForm').addEventListener('submit', e => { e.preventDefault(); const fd = new FormData(e.target); const c = candidates.find(x => x.id === parseInt(fd.get('candidateId'))); offers.push({ id: offers.length + 100, candidateId: c.id, vacancyId: c.vacancyId, status: 'pending', salary: fd.get('salary'), bonus: fd.get('bonus'), startDate: fd.get('startDate'), probation: parseInt(fd.get('probation')), workFormat: fd.get('workFormat'), benefits: fd.get('benefits'), expiryDate: fd.get('expiryDate'), createdAt: new Date().toISOString().split('T')[0] }); c.stage = 'offer'; closeModal('offerModal'); e.target.reset(); showToast('success', 'Оффер', 'Создан'); if (currentPage === 'offers') renderOffers(); });
-    document.getElementById('moveStageForm').addEventListener('submit', e => { e.preventDefault(); const fd = new FormData(e.target); const c = candidates.find(x => x.id === parseInt(fd.get('candidateId'))); const os = c.stage; const ns = fd.get('stage'); c.stage = ns; c.daysInStage = 0; c.updatedAt = new Date().toISOString().split('T')[0]; if (!c.timeline) c.timeline = []; c.timeline.push({ date: c.updatedAt, event: getStageLabel(ns), type: 'stage', description: `${getStageLabel(os)} → ${getStageLabel(ns)}` }); closeModal('moveStageModal'); e.target.reset(); showToast('success', 'Этап', `${c.firstName} ${c.lastName} → ${getStageLabel(ns)}`); if (currentPage === 'candidates') renderCandidates(); else if (currentPage === 'pipeline') renderPipeline(); });
-    document.getElementById('createVacancyForm').addEventListener('submit', e => { e.preventDefault(); const fd = new FormData(e.target); vacancies.push({ id: vacancies.length + 200, title: fd.get('title'), department: parseInt(fd.get('department')), managerId: parseInt(fd.get('managerId')), status: 'active', priority: fd.get('priority'), urgent: !!fd.get('urgent'), salary: { min: parseInt(fd.get('salaryMin')) || 0, max: parseInt(fd.get('salaryMax')) || 0, currency: 'RUB' }, location: fd.get('location') || '', workFormat: fd.get('workFormat'), createdAt: new Date().toISOString().split('T')[0], deadline: fd.get('deadline') || '', description: fd.get('description') || '', requirements: fd.get('requirements') ? fd.get('requirements').split(',').map(r => r.trim()).filter(Boolean) : [], niceToHave: [], candidatesCount: 0, stages: { new: 0, screening: 0, interview: 0, technical: 0, final: 0, offer: 0, hired: 0 } }); closeModal('createVacancyModal'); e.target.reset(); showToast('success', 'Вакансия', 'Создана'); if (currentPage === 'vacancies') renderVacancies(); });
+    // Add Candidate
+    document.getElementById('addCandidateForm').addEventListener('submit', async e => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        if (useAPI) {
+            try {
+                await api.post('/candidates', { first_name: fd.get('firstName'), last_name: fd.get('lastName'), email: fd.get('email'), phone: fd.get('phone'), vacancy_id: fd.get('vacancyId'), source: fd.get('source'), salary_expectation: fd.get('salaryExpectation'), notes: fd.get('notes') });
+                await reloadCandidates();
+            } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+        } else {
+            candidates.push({ id: candidates.length+100, firstName: fd.get('firstName'), lastName: fd.get('lastName'), email: fd.get('email'), phone: fd.get('phone'), vacancyId: fd.get('vacancyId'), stage:'new', source: fd.get('source'), salaryExpectation: fd.get('salaryExpectation'), skills:[], experience:'', daysInStage:0, rating:0, inTalentPool:false, notes:[], timeline:[], feedbacks:[] });
+        }
+        closeModal('addCandidateModal'); e.target.reset(); showToast('success', 'Добавлен', `${fd.get('firstName')} ${fd.get('lastName')}`);
+        if (currentPage === 'candidates') renderCandidates(); else if (currentPage === 'pipeline') renderPipeline();
+    });
+
+    // Schedule Interview
+    document.getElementById('scheduleInterviewForm').addEventListener('submit', async e => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        if (useAPI) {
+            try {
+                await api.post('/interviews', { candidate_id: fd.get('candidateId'), interview_type: fd.get('interviewType'), date: fd.get('date'), time: fd.get('time'), duration: parseInt(fd.get('duration')), format: fd.get('format'), interviewers: fd.getAll('interviewers'), notes: fd.get('notes') });
+                await reloadInterviews();
+            } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+        } else {
+            const c = candidates.find(x => x.id === fd.get('candidateId'));
+            interviews.push({ id: interviews.length+100, candidateId: fd.get('candidateId'), vacancyId: c?.vacancyId, type: fd.get('interviewType'), date: fd.get('date'), time: fd.get('time'), duration: parseInt(fd.get('duration')), format: fd.get('format'), interviewers: fd.getAll('interviewers'), status:'scheduled', notes: fd.get('notes') });
+        }
+        closeModal('scheduleInterviewModal'); e.target.reset(); showToast('success', 'Интервью', 'Назначено');
+        if (currentPage === 'interviews') renderInterviews();
+    });
+
+    // Feedback
+    document.getElementById('feedbackForm').addEventListener('submit', async e => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        if (useAPI) {
+            try {
+                await api.post('/feedbacks', { candidate_id: fd.get('candidateId'), rating: parseInt(fd.get('rating')), recommendation: fd.get('recommendation'), strengths: fd.get('strengths'), weaknesses: fd.get('weaknesses'), comment: fd.get('comment') });
+            } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+        } else {
+            const c = candidates.find(x => x.id === fd.get('candidateId'));
+            if (c) { if (!c.feedbacks) c.feedbacks = []; c.feedbacks.push({ id: Date.now(), interviewerId: hiringManagers[0]?.id, rating: parseInt(fd.get('rating')), recommendation: fd.get('recommendation'), strengths: fd.get('strengths'), weaknesses: fd.get('weaknesses'), comment: fd.get('comment'), date: new Date().toISOString().split('T')[0] }); }
+        }
+        closeModal('feedbackModal'); e.target.reset(); showToast('success', 'Фидбек', 'Сохранен');
+    });
+
+    // Reject
+    document.getElementById('rejectForm').addEventListener('submit', async e => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        const cid = fd.get('candidateId');
+        if (useAPI) {
+            try {
+                await api.post(`/candidates/${cid}/reject`, { reason: fd.get('reason'), details: fd.get('details'), add_to_pool: !!fd.get('addToPool') });
+                await reloadCandidates();
+            } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+        } else {
+            const c = candidates.find(x => x.id == cid); if (c) c.stage = 'rejected';
+        }
+        closeModal('rejectModal'); e.target.reset(); showToast('success', 'Отказ', 'Кандидат отклонён');
+        if (currentPage === 'candidates') renderCandidates(); else if (currentPage === 'pipeline') renderPipeline();
+    });
+
+    // Offer
+    document.getElementById('offerForm').addEventListener('submit', async e => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        if (useAPI) {
+            try {
+                await api.post('/offers', { candidate_id: fd.get('candidateId'), salary: fd.get('salary'), bonus: fd.get('bonus'), start_date: fd.get('startDate'), work_format: fd.get('workFormat'), benefits: fd.get('benefits'), expiry_date: fd.get('expiryDate') });
+                await reloadOffers(); await reloadCandidates();
+            } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+        } else {
+            const c = candidates.find(x => x.id == fd.get('candidateId'));
+            offers.push({ id: offers.length+100, candidateId: c?.id, vacancyId: c?.vacancyId, status:'pending', salary: fd.get('salary'), bonus: fd.get('bonus'), startDate: fd.get('startDate'), workFormat: fd.get('workFormat'), benefits: fd.get('benefits'), expiryDate: fd.get('expiryDate') });
+            if (c) c.stage = 'offer';
+        }
+        closeModal('offerModal'); e.target.reset(); showToast('success', 'Оффер', 'Создан');
+        if (currentPage === 'offers') renderOffers();
+    });
+
+    // Move Stage
+    document.getElementById('moveStageForm').addEventListener('submit', async e => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        const cid = fd.get('candidateId'); const ns = fd.get('stage');
+        if (useAPI) {
+            try {
+                await api.post(`/candidates/${cid}/move-stage`, { stage: ns, comment: fd.get('comment') });
+                await reloadCandidates();
+            } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+        } else {
+            const c = candidates.find(x => x.id == cid);
+            if (c) { c.stage = ns; c.daysInStage = 0; }
+        }
+        closeModal('moveStageModal'); e.target.reset();
+        const c = candidates.find(x => x.id == cid);
+        showToast('success', 'Этап', `${c ? c.firstName+' '+c.lastName : ''} → ${getStageLabel(ns)}`);
+        if (currentPage === 'candidates') renderCandidates(); else if (currentPage === 'pipeline') renderPipeline();
+    });
+
+    // Create Vacancy
+    document.getElementById('createVacancyForm').addEventListener('submit', async e => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        if (useAPI) {
+            try {
+                await api.post('/vacancies', { title: fd.get('title'), department_id: fd.get('department'), manager_id: fd.get('managerId'), priority: fd.get('priority'), urgent: !!fd.get('urgent'), salary_min: parseInt(fd.get('salaryMin')) || null, salary_max: parseInt(fd.get('salaryMax')) || null, location: fd.get('location'), work_format: fd.get('workFormat'), deadline: fd.get('deadline') || null, description: fd.get('description'), requirements: fd.get('requirements') ? fd.get('requirements').split(',').map(r => r.trim()).filter(Boolean) : [] });
+                await reloadVacancies();
+            } catch(err) { showToast('error', 'Ошибка', err.message); return; }
+        } else {
+            vacancies.push({ id: vacancies.length+200, title: fd.get('title'), department: fd.get('department'), managerId: fd.get('managerId'), status:'active', priority: fd.get('priority'), urgent:!!fd.get('urgent'), salary:{min:parseInt(fd.get('salaryMin'))||0,max:parseInt(fd.get('salaryMax'))||0,currency:'RUB'}, location: fd.get('location')||'', workFormat: fd.get('workFormat'), description: fd.get('description')||'', requirements:[], niceToHave:[], candidatesCount:0, stages:{} });
+        }
+        closeModal('createVacancyModal'); e.target.reset(); showToast('success', 'Вакансия', 'Создана');
+        if (currentPage === 'vacancies') renderVacancies();
+    });
 }
 
 // ===== Toast =====
