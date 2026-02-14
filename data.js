@@ -1242,7 +1242,7 @@ const rejectionReasons = [
     { value: 'other', label: 'Другое' }
 ];
 
-// Pipeline Stages
+// Pipeline Stages (default template)
 const pipelineStages = [
     { id: 'new', name: 'Новые', color: '#64748b' },
     { id: 'screening', name: 'Скрининг', color: '#f59e0b' },
@@ -1252,6 +1252,35 @@ const pipelineStages = [
     { id: 'offer', name: 'Оффер', color: '#10b981' },
     { id: 'hired', name: 'Нанят', color: '#065f46' }
 ];
+
+// Per-vacancy custom stages (overrides default when set)
+const vacancyCustomStages = {
+    // Sales Manager B2B - no technical interview, has demo stage
+    9: [
+        { id: 'new', name: 'Новые', color: '#64748b' },
+        { id: 'screening', name: 'Скрининг', color: '#f59e0b' },
+        { id: 'interview', name: 'HR интервью', color: '#3b82f6' },
+        { id: 'demo', name: 'Демо-продажа', color: '#8b5cf6' },
+        { id: 'final', name: 'Финал с директором', color: '#ec4899' },
+        { id: 'offer', name: 'Оффер', color: '#10b981' },
+        { id: 'hired', name: 'Нанят', color: '#065f46' }
+    ],
+    // Marketing Manager - has test task
+    6: [
+        { id: 'new', name: 'Новые', color: '#64748b' },
+        { id: 'screening', name: 'Скрининг', color: '#f59e0b' },
+        { id: 'interview', name: 'Интервью', color: '#3b82f6' },
+        { id: 'test_task', name: 'Тестовое задание', color: '#8b5cf6' },
+        { id: 'final', name: 'Финал', color: '#ec4899' },
+        { id: 'offer', name: 'Оффер', color: '#10b981' },
+        { id: 'hired', name: 'Нанят', color: '#065f46' }
+    ]
+};
+
+// Helper: get stages for a vacancy (custom or default)
+function getStagesForVacancy(vacancyId) {
+    return vacancyCustomStages[vacancyId] || pipelineStages;
+}
 
 // Sources
 const sources = [

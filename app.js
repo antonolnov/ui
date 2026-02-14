@@ -187,106 +187,220 @@ function openVacancyModal(id) {
     openModal('vacancyModal');
 }
 
-// ===== Candidates =====
-let candidatesViewMode = 'table'; // 'table' or 'triage'
+// ===== Candidates (Flow-Oriented) =====
+let selectedIds = new Set();
+let previewCandidateId = null;
+let sortCol = 'daysInStage';
+let sortDir = 'desc';
+let savedFilter = '';
+
+const SAVED_FILTERS = [
+    { id: 'new', label: 'Новые отклики', icon: 'inbox', fn: c => c.stage === 'new' },
+    { id: 'urgent', label: 'Срочные', icon: 'flame', fn: c => c.urgent },
+    { id: 'no-step', label: 'Без следующего шага', icon: 'alert-circle', fn: c => !c.nextStep && c.stage !== 'rejected' && c.stage !== 'hired' },
+    { id: 'stale', label: 'Застряли (5+ дней)', icon: 'clock', fn: c => c.daysInStage > 5 && c.stage !== 'rejected' && c.stage !== 'hired' },
+    { id: 'offer', label: 'На оффере', icon: 'file-text', fn: c => c.stage === 'offer' },
+];
 
 function renderCandidates() {
+    selectedIds.clear(); previewCandidateId = null;
     const page = document.getElementById('candidates-page');
     const newCount = candidates.filter(c => c.stage === 'new').length;
     page.innerHTML = `
-        <div class="page-header"><h1>Кандидаты</h1><div class="page-actions">
-            <div class="interviews-view-toggle">
-                <button class="view-toggle-btn ${candidatesViewMode === 'table' ? 'active' : ''}" data-cview="table" title="Таблица">${ic('list','icon-sm')}</button>
-                <button class="view-toggle-btn ${candidatesViewMode === 'triage' ? 'active' : ''}" data-cview="triage" title="Разбор откликов" style="position:relative">${ic('inbox','icon-sm')}${newCount > 0 ? `<span style="position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:.55rem;padding:1px 4px;border-radius:var(--radius-full);font-weight:700">${newCount}</span>` : ''}</button>
-            </div>
-            <button class="btn btn-outline" onclick="showToast('info','Экспорт','Экспорт списка')">${ic('download')} Экспорт</button>
+        <div class="page-header"><h1>Кандидаты <span class="text-muted" style="font-size:.9rem;font-weight:400">${candidates.filter(c=>c.stage!=='rejected').length}</span></h1><div class="page-actions">
+            <button class="btn btn-outline" onclick="showToast('info','Экспорт','Экспорт')">${ic('download')} Экспорт</button>
             <button class="btn btn-primary" onclick="openModal('addCandidateModal')">${ic('user-plus')} Добавить</button>
         </div></div>
-        <div id="candidatesViewContent">${candidatesViewMode === 'triage' ? renderTriageView() : renderTableView()}</div>`;
-    page.querySelectorAll('[data-cview]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            page.querySelectorAll('[data-cview]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            candidatesViewMode = btn.dataset.cview;
-            document.getElementById('candidatesViewContent').innerHTML = candidatesViewMode === 'triage' ? renderTriageView() : renderTableView();
-        });
-    });
+        <div class="saved-filters" id="savedFilters">
+            <span class="saved-filter-chip ${savedFilter===''?'active':''}" onclick="applySavedFilter('')">${ic('list','icon-sm')} Все</span>
+            ${SAVED_FILTERS.map(f => `<span class="saved-filter-chip ${savedFilter===f.id?'active':''}" onclick="applySavedFilter('${f.id}')">${ic(f.icon,'icon-sm')} ${f.label} <strong>${candidates.filter(f.fn).length}</strong></span>`).join('')}
+        </div>
+        <div class="candidates-toolbar"><div class="candidates-filters">
+            <select class="filter-select" id="vacancyFilter" onchange="filterCandidates()"><option value="">Все вакансии</option>${vacancies.filter(v => v.status !== 'closed').map(v => `<option value="${v.id}">${v.title}</option>`).join('')}</select>
+            <select class="filter-select" id="stageFilter" onchange="filterCandidates()"><option value="">Все этапы</option>${pipelineStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}<option value="rejected">Отказ</option></select>
+            <select class="filter-select" id="sourceFilter" onchange="filterCandidates()"><option value="">Все источники</option>${sources.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}</select>
+        </div><div class="search-box" style="width:240px;border:1px solid var(--border)">${ic('search')}<input type="text" placeholder="Поиск..." id="candidateSearch" oninput="filterCandidates()"></div></div>
+        <div class="split-view ${previewCandidateId ? 'has-preview' : ''}" id="splitView">
+            <div class="split-table"><table class="candidates-table"><thead><tr>
+                <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"></th>
+                <th class="${sortCol==='name'?'sorted':''}" onclick="sortCandidates('name')">Кандидат <span class="sort-icon">${ic(sortDir==='asc'&&sortCol==='name'?'arrow-up':'arrow-up','icon-sm')}</span></th>
+                <th onclick="sortCandidates('vacancy')">Вакансия</th>
+                <th onclick="sortCandidates('stage')">Этап</th>
+                <th onclick="sortCandidates('source')">Источник</th>
+                <th class="${sortCol==='daysInStage'?'sorted':''}" onclick="sortCandidates('daysInStage')">Дней <span class="sort-icon">${ic('arrow-up','icon-sm')}</span></th>
+                <th>Действия</th>
+            </tr></thead><tbody id="candidatesTableBody">${renderCandidateRows(getFilteredCandidates())}</tbody></table></div>
+            <div class="preview-panel" id="previewPanel"><div class="preview-panel-empty">Выберите кандидата<br>для быстрого просмотра</div></div>
+        </div>
+        <div id="bulkBarContainer"></div>`;
     const sel = document.getElementById('addCandidateVacancy');
     if (sel) sel.innerHTML = vacancies.filter(v => v.status === 'active').map(v => `<option value="${v.id}">${v.title}</option>`).join('');
 }
 
-function renderTableView() {
-    return `<div class="candidates-toolbar"><div class="candidates-filters">
-            <select class="filter-select" id="vacancyFilter" onchange="filterCandidates()"><option value="">Все вакансии</option>${vacancies.filter(v => v.status !== 'closed').map(v => `<option value="${v.id}">${v.title}</option>`).join('')}</select>
-            <select class="filter-select" id="stageFilter" onchange="filterCandidates()"><option value="">Все этапы</option>${pipelineStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}<option value="rejected">Отказ</option></select>
-            <select class="filter-select" id="sourceFilter" onchange="filterCandidates()"><option value="">Все источники</option>${sources.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}</select>
-        </div><div class="search-box" style="width:260px;border:1px solid var(--border)">${ic('search')}<input type="text" placeholder="Поиск..." id="candidateSearch" oninput="filterCandidates()"></div></div>
-        <div class="candidates-table-wrapper"><table class="candidates-table"><thead><tr><th>Кандидат</th><th>Вакансия</th><th>Этап</th><th>Источник</th><th>Ожидания</th><th>Дней</th><th>Действия</th></tr></thead><tbody id="candidatesTableBody">${renderCandidateRows(candidates.filter(c => c.stage !== 'rejected'))}</tbody></table></div>`;
+function getFilteredCandidates() {
+    let list = candidates.filter(c => c.stage !== 'rejected');
+    if (savedFilter) {
+        const sf = SAVED_FILTERS.find(f => f.id === savedFilter);
+        if (sf) list = candidates.filter(sf.fn);
+    }
+    const vf = document.getElementById('vacancyFilter')?.value;
+    const stf = document.getElementById('stageFilter')?.value;
+    const src = document.getElementById('sourceFilter')?.value;
+    const q = document.getElementById('candidateSearch')?.value?.toLowerCase();
+    if (vf) list = list.filter(c => c.vacancyId === parseInt(vf));
+    if (stf) list = list.filter(c => c.stage === stf);
+    if (src) list = list.filter(c => c.source === src);
+    if (q) list = list.filter(c => `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) || c.email.toLowerCase().includes(q));
+    // Sort
+    list.sort((a, b) => {
+        let va, vb;
+        if (sortCol === 'name') { va = `${a.firstName} ${a.lastName}`; vb = `${b.firstName} ${b.lastName}`; }
+        else if (sortCol === 'daysInStage') { va = a.daysInStage; vb = b.daysInStage; }
+        else if (sortCol === 'stage') { va = pipelineStages.findIndex(s=>s.id===a.stage); vb = pipelineStages.findIndex(s=>s.id===b.stage); }
+        else { va = a[sortCol]; vb = b[sortCol]; }
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+    });
+    return list;
 }
 
-function renderTriageView() {
-    const newCandidates = candidates.filter(c => c.stage === 'new');
-    if (newCandidates.length === 0) {
-        return `<div class="card"><div class="card-body"><div class="empty-state">${ic('check','icon-lg')}<h3>Все отклики разобраны!</h3><p>Новых кандидатов на рассмотрение нет</p></div></div></div>`;
-    }
-    return `<div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-        <p class="text-muted">${newCandidates.length} новых откликов для разбора</p>
-        <div style="display:flex;gap:6px">
-            <button class="btn btn-sm btn-outline" onclick="triageBatchAction('screening')">${ic('check','icon-sm')} Все в скрининг</button>
-        </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:12px">${newCandidates.map(c => {
+function applySavedFilter(id) {
+    savedFilter = id;
+    renderCandidates();
+}
+
+function sortCandidates(col) {
+    if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortCol = col; sortDir = col === 'daysInStage' ? 'desc' : 'asc'; }
+    filterCandidates();
+}
+
+function renderCandidateRows(list) {
+    return list.map(c => {
         const v = vacancies.find(x => x.id === c.vacancyId);
         const sl = sources.find(s => s.value === c.source)?.label || c.source;
-        return `<div class="card" style="overflow:hidden"><div style="padding:18px;display:flex;gap:16px;align-items:flex-start">
-            <div style="flex-shrink:0">${ava(c.firstName + ' ' + c.lastName, 48)}</div>
-            <div style="flex:1;min-width:0">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-                    <span style="font-weight:600;font-size:1rem">${c.firstName} ${c.lastName}</span>
-                    <span class="stage-badge new">Новый</span>
-                    ${c.urgent ? `<span style="color:var(--danger);font-size:.75rem;font-weight:600">${ic('flame','icon-sm')} Срочный</span>` : ''}
-                </div>
-                <div class="text-muted" style="font-size:.85rem;margin-bottom:8px">${c.currentCompany || ''} · ${c.experience} · ${sl}</div>
-                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${(c.skills || []).map(s => `<span class="kanban-card-tag">${s}</span>`).join('')}</div>
-                <div style="display:flex;gap:16px;font-size:.8rem;color:var(--text-2)">
-                    <span>${ic('briefcase','icon-sm')} ${v ? v.title : '-'}</span>
-                    <span>${ic('dollar-sign','icon-sm')} ${c.salaryExpectation || '-'}</span>
-                    <span>${ic('map-pin','icon-sm')} ${c.location || '-'}</span>
-                </div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-                <button class="btn btn-sm btn-success" onclick="event.stopPropagation();triageAction(${c.id},'screening')">${ic('check','icon-sm')} В скрининг</button>
-                <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openCandidateModal(${c.id})">${ic('eye','icon-sm')} Подробнее</button>
-                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openRejectModal(${c.id})">${ic('x','icon-sm')} Отказ</button>
-            </div>
-        </div></div>`;
-    }).join('')}</div>`;
+        const sel = selectedIds.has(c.id);
+        const prev = previewCandidateId === c.id;
+        return `<tr class="${sel?'selected':''} ${prev?'selected':''}" onclick="showPreview(${c.id})" style="cursor:pointer">
+            <td onclick="event.stopPropagation()"><input type="checkbox" ${sel?'checked':''} onchange="toggleSelect(${c.id},this.checked)"></td>
+            <td><div class="candidate-info">${ava(c.firstName+' '+c.lastName,32)}<div><div class="candidate-name">${c.firstName} ${c.lastName}</div><div class="candidate-position">${c.currentCompany||''} · ${c.experience}</div></div></div></td>
+            <td style="font-size:.8rem">${v?v.title:'-'}</td>
+            <td><span class="stage-badge ${c.stage}">${getStageLabel(c.stage)}</span></td>
+            <td style="font-size:.8rem">${sl}</td>
+            <td><span class="${c.daysInStage>5?'text-danger':''}" style="font-weight:600">${c.daysInStage}д</span></td>
+            <td><div class="candidate-actions" onclick="event.stopPropagation()">
+                <button class="action-btn" onclick="openMoveStage(${c.id})">${ic('arrow-right','icon-sm')}</button>
+                <button class="action-btn danger" onclick="openRejectModal(${c.id})">${ic('x','icon-sm')}</button>
+            </div></td></tr>`;
+    }).join('');
 }
 
-function triageAction(candidateId, newStage) {
-    const c = candidates.find(x => x.id === candidateId);
+function showPreview(id) {
+    previewCandidateId = id;
+    const sv = document.getElementById('splitView');
+    sv.classList.add('has-preview');
+    const c = candidates.find(x => x.id === id);
     if (!c) return;
-    const os = c.stage;
-    c.stage = newStage;
-    c.daysInStage = 0;
-    c.updatedAt = new Date().toISOString().split('T')[0];
-    if (!c.timeline) c.timeline = [];
-    c.timeline.push({ date: c.updatedAt, event: getStageLabel(newStage), type: 'stage', description: `${getStageLabel(os)} → ${getStageLabel(newStage)}` });
-    showToast('success', 'Скрининг', `${c.firstName} ${c.lastName} переведен в скрининг`);
-    renderCandidates();
+    const v = vacancies.find(x => x.id === c.vacancyId);
+    const sl = sources.find(s => s.value === c.source)?.label || c.source;
+    document.getElementById('previewPanel').innerHTML = `
+        <div class="preview-header">
+            <div style="display:flex;align-items:center;gap:10px">${ava(c.firstName+' '+c.lastName,40)}<div><div style="font-weight:600">${c.firstName} ${c.lastName}</div><div class="text-muted" style="font-size:.75rem">${c.currentCompany||''} · ${c.experience}</div></div></div>
+            <button class="btn btn-sm btn-outline" onclick="openCandidateModal(${c.id})">${ic('external-link','icon-sm')}</button>
+        </div>
+        <div class="preview-body">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span class="stage-badge ${c.stage}">${getStageLabel(c.stage)}</span>${c.urgent?`<span style="color:var(--danger);font-size:.7rem;font-weight:600">${ic('flame','icon-sm')} Срочный</span>`:''}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">${(c.skills||[]).map(s=>`<span class="kanban-card-tag">${s}</span>`).join('')}</div>
+            <div style="font-size:.8rem;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;color:var(--text-2)">
+                <div>${ic('briefcase','icon-sm')} ${v?v.title:'-'}</div>
+                <div>${ic('dollar-sign','icon-sm')} ${c.salaryExpectation||'-'}</div>
+                <div>${ic('map-pin','icon-sm')} ${c.location||'-'}</div>
+                <div>${ic('tag','icon-sm')} ${sl}</div>
+            </div>
+            <div style="font-size:.8rem;font-weight:600;margin-bottom:8px">Хронология</div>
+            ${renderRichTimeline(c)}
+        </div>
+        <div class="preview-actions">
+            <button class="btn btn-primary btn-sm" onclick="openScheduleInterview(${c.id})">${ic('calendar-plus','icon-sm')} Интервью</button>
+            <button class="btn btn-outline btn-sm" onclick="openMoveStage(${c.id})">${ic('arrow-right','icon-sm')} Перевести</button>
+            <button class="btn btn-danger btn-sm" onclick="openRejectModal(${c.id})">${ic('x','icon-sm')} Отказать</button>
+        </div>`;
+    // highlight row
+    document.querySelectorAll('.candidates-table tr').forEach(tr => tr.classList.remove('selected'));
+    // re-highlight
+    filterCandidates();
 }
 
-function triageBatchAction(newStage) {
-    const newCandidates = candidates.filter(c => c.stage === 'new');
-    newCandidates.forEach(c => {
-        c.stage = newStage;
-        c.daysInStage = 0;
-        c.updatedAt = new Date().toISOString().split('T')[0];
+// ===== Rich Timeline (merged from all sources) =====
+function renderRichTimeline(c) {
+    let events = [];
+    (c.timeline || []).forEach(t => events.push({ date: t.date, type: t.type === 'stage' ? 'stage' : t.type === 'interview' ? 'interview' : 'create', title: t.event, body: t.description }));
+    (c.feedbacks || []).forEach(fb => { const iv = hiringManagers.find(m => m.id === fb.interviewerId); events.push({ date: fb.date, type: 'feedback', title: `Фидбек от ${iv?.name||'?'}`, body: `${fb.rating}/5 — ${getRecommendationLabel(fb.recommendation)}${fb.comment ? '. '+fb.comment : ''}` }); });
+    (c.notes || []).forEach(n => events.push({ date: n.date, type: 'note', title: `Заметка (${n.author})`, body: n.text }));
+    events.sort((a,b) => new Date(b.date) - new Date(a.date));
+    if (events.length === 0) return '<p class="text-muted" style="font-size:.8rem">Пока нет событий</p>';
+    return `<div class="rich-timeline">${events.slice(0,10).map(e => `<div class="tl-item"><div class="tl-dot ${e.type}"></div><div class="tl-time">${formatDate(e.date)}</div><div class="tl-title">${e.title}</div><div class="tl-body">${e.body}</div></div>`).join('')}</div>`;
+}
+
+// ===== Bulk Operations =====
+function toggleSelect(id, checked) {
+    if (checked) selectedIds.add(id); else selectedIds.delete(id);
+    renderBulkBar();
+}
+
+function toggleSelectAll(checked) {
+    const list = getFilteredCandidates();
+    if (checked) list.forEach(c => selectedIds.add(c.id)); else selectedIds.clear();
+    document.querySelectorAll('.candidates-table tbody input[type=checkbox]').forEach(cb => cb.checked = checked);
+    renderBulkBar();
+}
+
+function renderBulkBar() {
+    const cnt = selectedIds.size;
+    const container = document.getElementById('bulkBarContainer');
+    if (cnt === 0) { container.innerHTML = ''; return; }
+    container.innerHTML = `<div class="bulk-bar">
+        <span><span class="bulk-count">${cnt}</span> выбрано</span>
+        <button class="btn btn-sm btn-success" onclick="bulkMoveStage('screening')">${ic('arrow-right','icon-sm')} В скрининг</button>
+        <button class="btn btn-sm btn-ghost" onclick="bulkMoveStagePrompt()">${ic('columns','icon-sm')} На этап...</button>
+        <button class="btn btn-sm btn-danger" onclick="bulkReject()">${ic('x','icon-sm')} Отказать</button>
+        <button class="btn btn-sm btn-ghost" onclick="selectedIds.clear();filterCandidates();renderBulkBar()">${ic('x','icon-sm')} Снять</button>
+    </div>`;
+}
+
+function bulkMoveStage(stage) {
+    const ids = [...selectedIds];
+    ids.forEach(id => {
+        const c = candidates.find(x=>x.id===id); if(!c) return;
+        const os = c.stage; c.stage = stage; c.daysInStage = 0; c.updatedAt = new Date().toISOString().split('T')[0];
         if (!c.timeline) c.timeline = [];
-        c.timeline.push({ date: c.updatedAt, event: getStageLabel(newStage), type: 'stage', description: `Новый → ${getStageLabel(newStage)} (массовое действие)` });
+        c.timeline.push({ date: c.updatedAt, event: getStageLabel(stage), type: 'stage', description: `${getStageLabel(os)} → ${getStageLabel(stage)} (bulk)` });
     });
-    showToast('success', 'Массовое действие', `${newCandidates.length} кандидатов переведены в ${getStageLabel(newStage)}`);
-    renderCandidates();
+    showToast('success', 'Массовое действие', `${ids.length} кандидатов → ${getStageLabel(stage)}`);
+    selectedIds.clear(); renderCandidates();
+}
+
+function bulkMoveStagePrompt() {
+    const stage = prompt('Этап: new, screening, interview, technical, final, offer, hired');
+    if (stage && getStageLabel(stage) !== stage) bulkMoveStage(stage);
+}
+
+function bulkReject() {
+    const ids = [...selectedIds];
+    ids.forEach(id => {
+        const c = candidates.find(x=>x.id===id); if(!c) return;
+        c.stage = 'rejected'; c.updatedAt = new Date().toISOString().split('T')[0];
+    });
+    showToast('success', 'Массовый отказ', `${ids.length} кандидатов отклонены`);
+    selectedIds.clear(); renderCandidates();
+}
+
+function filterCandidates() {
+    const list = getFilteredCandidates();
+    const tbody = document.getElementById('candidatesTableBody');
+    if (tbody) tbody.innerHTML = renderCandidateRows(list);
+    renderBulkBar();
 }
 
 function renderCandidateRows(list) {
@@ -327,12 +441,13 @@ function renderPipeline() {
     const page = document.getElementById('pipeline-page');
     page.innerHTML = `
         <div class="pipeline-header"><h1>Воронка кандидатов</h1><select class="pipeline-vacancy-select" id="pipelineVacancySelect" onchange="filterPipelineByVacancy(this.value)"><option value="">Все вакансии</option>${vacancies.filter(v => v.status !== 'closed').map(v => `<option value="${v.id}">${v.title}</option>`).join('')}</select></div>
-        <div class="kanban-board" id="kanbanBoard">${renderKanbanColumns(candidates.filter(c => c.stage !== 'rejected' && c.stage !== 'hired'))}</div>`;
+        <div class="kanban-board" id="kanbanBoard">${renderKanbanColumns(candidates.filter(c => c.stage !== 'rejected' && c.stage !== 'hired'), '')}</div>`;
     initDnD();
 }
 
-function renderKanbanColumns(list) {
-    return pipelineStages.filter(s => s.id !== 'hired').map(s => {
+function renderKanbanColumns(list, vacancyId) {
+    const stages = vacancyId ? getStagesForVacancy(parseInt(vacancyId)) : pipelineStages;
+    return stages.filter(s => s.id !== 'hired').map(s => {
         const sc = list.filter(c => c.stage === s.id);
         return `<div class="kanban-column" data-stage="${s.id}"><div class="kanban-column-header"><div class="kanban-column-title"><span class="stage-dot" style="background:${s.color}"></span>${s.name}<span class="kanban-column-count">${sc.length}</span></div></div><div class="kanban-column-body" data-stage="${s.id}">${sc.map(c => renderKanbanCard(c)).join('')}${sc.length === 0 ? '<div class="empty-state" style="padding:16px"><p>Пусто</p></div>' : ''}</div></div>`;
     }).join('');
@@ -365,7 +480,7 @@ function initDnD() {
         const sel = document.getElementById('pipelineVacancySelect'); const fv = sel ? sel.value : '';
         let filtered = candidates.filter(c => c.stage !== 'rejected' && c.stage !== 'hired');
         if (fv) filtered = filtered.filter(c => c.vacancyId === parseInt(fv));
-        document.getElementById('kanbanBoard').innerHTML = renderKanbanColumns(filtered); initDnD();
+        document.getElementById('kanbanBoard').innerHTML = renderKanbanColumns(filtered, fv); initDnD();
     });
 }
 
@@ -373,7 +488,7 @@ function filterPipelineByVacancy(vid) {
     const sel = document.getElementById('pipelineVacancySelect'); if (sel && vid) sel.value = vid;
     let list = candidates.filter(c => c.stage !== 'rejected' && c.stage !== 'hired');
     if (vid) list = list.filter(c => c.vacancyId === parseInt(vid));
-    document.getElementById('kanbanBoard').innerHTML = renderKanbanColumns(list); initDnD();
+    document.getElementById('kanbanBoard').innerHTML = renderKanbanColumns(list, vid); initDnD();
 }
 
 // ===== Interviews =====
@@ -510,11 +625,35 @@ function renderSettings() {
 function renderSettingsSection(s) {
     if (s === 'profile') return `<div class="settings-section"><h3>Профиль</h3><div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">${ava('Мария Иванова', 64)}<div><button class="btn btn-outline btn-sm">Загрузить фото</button><p class="text-muted" style="font-size:.7rem;margin-top:4px">JPG, PNG до 2 МБ</p></div></div><div class="form-row"><div class="form-group"><label>Имя</label><input type="text" value="Мария"></div><div class="form-group"><label>Фамилия</label><input type="text" value="Иванова"></div></div><div class="form-group"><label>Email</label><input type="email" value="maria@workhere.com"></div><div class="form-row"><div class="form-group"><label>Телефон</label><input type="tel" value="+7 999 000-00-00"></div><div class="form-group"><label>Telegram</label><input type="text" value="@maria_hr"></div></div></div><div class="form-actions" style="border-top:none;padding-top:0"><button class="btn btn-primary" onclick="showToast('success','Сохранено','Профиль обновлен')">Сохранить</button></div>`;
     if (s === 'notifications') return `<div class="settings-section"><h3>Email</h3><div class="checkbox-group"><label class="checkbox-item"><input type="checkbox" checked><span>Новые отклики</span></label><label class="checkbox-item"><input type="checkbox" checked><span>Напоминания об интервью</span></label><label class="checkbox-item"><input type="checkbox" checked><span>Просроченные фидбеки</span></label><label class="checkbox-item"><input type="checkbox"><span>Ежедневный дайджест</span></label></div></div><div class="settings-section"><h3>Push</h3><div class="checkbox-group"><label class="checkbox-item"><input type="checkbox" checked><span>Срочные события</span></label><label class="checkbox-item"><input type="checkbox" checked><span>Сообщения от кандидатов</span></label></div></div><div class="form-actions" style="border-top:none;padding-top:0"><button class="btn btn-primary" onclick="showToast('success','Сохранено','Уведомления обновлены')">Сохранить</button></div>`;
-    if (s === 'pipeline') return `<div class="settings-section"><h3>Этапы воронки</h3><p class="text-muted mb-4" style="font-size:.85rem">Настройте этапы процесса найма.</p><div style="display:flex;flex-direction:column;gap:8px">${pipelineStages.map((st, i) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:var(--radius);border:1px solid var(--border)">${ic('grip','icon-sm')}<span class="stage-dot" style="background:${st.color}"></span><input type="text" value="${st.name}" style="flex:1;border:none;background:transparent;font-size:.85rem;color:var(--text-1);outline:none"><span class="text-muted" style="font-size:.7rem">Этап ${i + 1}</span></div>`).join('')}</div><button class="btn btn-outline btn-sm mt-4">${ic('plus','icon-sm')} Добавить этап</button></div>`;
+    if (s === 'pipeline') {
+        const allVacOptions = [{id:'',label:'Шаблон по умолчанию'}].concat(vacancies.filter(v=>v.status==='active').map(v=>({id:v.id,label:v.title})));
+        return `<div class="settings-section"><h3>Этапы воронки</h3>
+            <p class="text-muted mb-4" style="font-size:.85rem">Этапы можно настроить глобально или для конкретной вакансии. Разные вакансии могут иметь разный процесс.</p>
+            <div class="form-group"><label>Вакансия</label><select class="filter-select" id="stageVacancySelect" onchange="renderStagesForVacancy()" style="width:100%">${allVacOptions.map(o=>`<option value="${o.id}">${o.label}</option>`).join('')}</select></div>
+            <div id="stagesEditor">${renderStagesEditor('')}</div>
+        </div>`;
+    }
     if (s === 'templates') return `<div class="settings-section"><h3>Шаблоны писем</h3><div style="display:flex;flex-direction:column;gap:10px">${[{n:'Приглашение на скрининг',u:45},{n:'Приглашение на интервью',u:38},{n:'Отказ (общий)',u:67},{n:'Отказ (после интервью)',u:31},{n:'Отправка оффера',u:12}].map(t => `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg-input);border-radius:var(--radius);border:1px solid var(--border)"><div><div style="font-weight:500;font-size:.85rem">${t.n}</div><div class="text-muted" style="font-size:.7rem">${t.u} раз</div></div><div style="display:flex;gap:6px"><button class="btn btn-outline btn-sm">${ic('edit','icon-sm')}</button><button class="btn btn-outline btn-sm">${ic('eye','icon-sm')}</button></div></div>`).join('')}</div></div>`;
     if (s === 'integrations') return `<div class="settings-section"><h3>Интеграции</h3><div style="display:flex;flex-direction:column;gap:10px">${[{n:'HeadHunter',i:'globe',ok:true,d:'Вакансии, отклики'},{n:'Google Calendar',i:'calendar',ok:true,d:'Интервью'},{n:'Gmail',i:'mail',ok:false,d:'Письма'},{n:'Telegram Bot',i:'send',ok:false,d:'Уведомления'},{n:'Slack',i:'hash',ok:false,d:'Команда'},{n:'Zoom',i:'video',ok:false,d:'Интервью'}].map(x => `<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg-input);border-radius:var(--radius);border:1px solid var(--border)"><div style="width:40px;height:40px;border-radius:var(--radius);background:var(--bg-card);display:flex;align-items:center;justify-content:center">${ic(x.i)}</div><div style="flex:1"><div style="font-weight:500;font-size:.85rem">${x.n}</div><div class="text-muted" style="font-size:.7rem">${x.d}</div></div>${x.ok ? '<span class="stage-badge offer">Подключено</span>' : `<button class="btn btn-primary btn-sm">Подключить</button>`}</div>`).join('')}</div></div>`;
     if (s === 'team') return `<div class="settings-section"><h3>Команда</h3><div style="display:flex;flex-direction:column;gap:10px">${[{n:'Мария Иванова',r:'Рекрутер',on:true},{n:'Ольга Смирнова',r:'HR Director',on:true},{n:'Алексей Петров',r:'Tech Lead',on:false},{n:'Дмитрий Козлов',r:'CTO',on:false},{n:'Анна Федорова',r:'PM',on:true}].map(m => `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-input);border-radius:var(--radius);border:1px solid var(--border)">${ava(m.n, 36)}<div style="flex:1"><div style="font-weight:500;font-size:.85rem">${m.n}</div><div class="text-muted" style="font-size:.7rem">${m.r}</div></div><span style="font-size:.7rem;color:${m.on ? 'var(--success)' : 'var(--text-3)'}">● ${m.on ? 'Онлайн' : 'Офлайн'}</span></div>`).join('')}</div><button class="btn btn-primary btn-sm mt-4">${ic('user-plus','icon-sm')} Пригласить</button></div>`;
     return '<p class="text-muted">Раздел в разработке</p>';
+}
+
+// ===== Configurable Stages =====
+function renderStagesEditor(vacancyId) {
+    const stages = vacancyId ? getStagesForVacancy(parseInt(vacancyId)) : pipelineStages;
+    const isCustom = vacancyId && vacancyCustomStages[parseInt(vacancyId)];
+    return `${isCustom ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="stage-badge offer" style="font-size:.7rem">Кастомные этапы</span><span class="text-muted" style="font-size:.75rem">Эта вакансия использует свои этапы</span></div>` : ''}
+        <div style="display:flex;flex-direction:column;gap:8px">${stages.map((st, i) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:var(--radius);border:1px solid var(--border)">${ic('grip','icon-sm')}<span class="stage-dot" style="background:${st.color}"></span><input type="text" value="${st.name}" style="flex:1;border:none;background:transparent;font-size:.85rem;color:var(--text-1);outline:none"><span class="text-muted" style="font-size:.7rem">${i + 1}</span>${st.id !== 'new' && st.id !== 'hired' ? `<button class="action-btn danger" style="width:24px;height:24px" onclick="showToast('info','Удаление','Удаление этапа ${st.name}')">${ic('x','icon-sm')}</button>` : ''}</div>`).join('')}</div>
+        <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-outline btn-sm" onclick="showToast('info','Этап','Добавление нового этапа')">${ic('plus','icon-sm')} Добавить этап</button>
+        ${!isCustom && vacancyId ? `<button class="btn btn-primary btn-sm" onclick="showToast('info','Кастомизация','Создание кастомных этапов для этой вакансии')">${ic('edit','icon-sm')} Настроить для этой вакансии</button>` : ''}
+        </div>
+        <div class="form-actions" style="border-top:none;padding-top:8px"><button class="btn btn-primary" onclick="showToast('success','Сохранено','Этапы обновлены')">Сохранить этапы</button></div>`;
+}
+
+function renderStagesForVacancy() {
+    const sel = document.getElementById('stageVacancySelect');
+    document.getElementById('stagesEditor').innerHTML = renderStagesEditor(sel?.value || '');
 }
 
 // ===== Candidate Detail Modal =====
@@ -547,14 +686,14 @@ function openCandidateModal(id) {
             </div>
         </div>
         <div class="candidate-main">
-            <div class="candidate-tabs"><div class="candidate-tab active" data-tab="overview">Обзор</div><div class="candidate-tab" data-tab="timeline">История</div><div class="candidate-tab" data-tab="feedback">Фидбек</div><div class="candidate-tab" data-tab="notes">Заметки</div></div>
-            <div class="candidate-tab-content active" id="tab-overview">
+            <div class="candidate-tabs"><div class="candidate-tab active" data-tab="timeline">Хронология</div><div class="candidate-tab" data-tab="overview">Обзор</div><div class="candidate-tab" data-tab="feedback">Фидбек (${(c.feedbacks||[]).length})</div><div class="candidate-tab" data-tab="notes">Заметки (${(c.notes||[]).length})</div></div>
+            <div class="candidate-tab-content" id="tab-overview">
                 <h4>Навыки</h4><div class="kanban-card-meta mb-4">${c.skills.map(s => `<span class="kanban-card-tag">${s}</span>`).join('')}</div>
                 <h4>Опыт</h4><p class="mb-4">${c.experience}${c.currentCompany ? `, ${c.currentCompany}` : ''}</p>
                 <h4>Следующий шаг</h4><div class="priority-item info mb-4"><div class="priority-icon info">${ic('arrow-right')}</div><div class="priority-content"><div class="priority-title">${c.nextStep || 'Не определен'}</div>${c.nextStepDue ? `<div class="priority-meta"><span>До: ${formatDate(c.nextStepDue)}</span></div>` : ''}</div></div>
                 <div class="stats-grid"><div class="stat-card"><div class="stat-value">${c.daysInStage}</div><div class="stat-label">Дней на этапе</div></div><div class="stat-card"><div class="stat-value">${c.feedbacks?.length || 0}</div><div class="stat-label">Фидбеков</div></div><div class="stat-card"><div class="stat-value">${c.rating || '-'}</div><div class="stat-label">Рейтинг</div></div></div>
             </div>
-            <div class="candidate-tab-content" id="tab-timeline"><div class="timeline">${(c.timeline || []).slice().reverse().map(i => `<div class="timeline-item ${i.type === 'completed' ? 'completed' : ''}"><div class="timeline-date">${formatDate(i.date)}</div><div class="timeline-title">${i.event}</div><div class="timeline-content">${i.description}</div></div>`).join('') || '<p class="text-muted">Пусто</p>'}</div></div>
+            <div class="candidate-tab-content active" id="tab-timeline">${renderRichTimeline(c)}</div>
             <div class="candidate-tab-content" id="tab-feedback">
                 ${(c.feedbacks && c.feedbacks.length > 0) ? `
                 <div class="card mb-4" style="border:2px solid var(--primary-light)"><div style="padding:14px 16px">
@@ -693,8 +832,91 @@ globalSearchInput.addEventListener('keydown', e => {
 });
 document.addEventListener('click', e => { if (!e.target.closest('#searchBox')) searchDropdown.classList.remove('active'); });
 
+// ===== Command Palette =====
+const cmdOverlay = document.getElementById('cmdOverlay');
+const cmdInput = document.getElementById('cmdInput');
+const cmdResults = document.getElementById('cmdResults');
+let cmdHI = -1;
+
+function getCommands(q) {
+    const ql = (q || '').toLowerCase();
+    let cmds = [];
+    // Navigation
+    cmds.push({ cat: 'Навигация', icon: 'home', label: 'Дашборд', action: () => navigateTo('dashboard') });
+    cmds.push({ cat: 'Навигация', icon: 'clipboard', label: 'Вакансии', action: () => navigateTo('vacancies') });
+    cmds.push({ cat: 'Навигация', icon: 'users', label: 'Кандидаты', action: () => navigateTo('candidates') });
+    cmds.push({ cat: 'Навигация', icon: 'columns', label: 'Воронка', action: () => navigateTo('pipeline') });
+    cmds.push({ cat: 'Навигация', icon: 'calendar', label: 'Интервью', action: () => navigateTo('interviews') });
+    cmds.push({ cat: 'Навигация', icon: 'bar-chart', label: 'Аналитика', action: () => navigateTo('analytics') });
+    cmds.push({ cat: 'Навигация', icon: 'settings', label: 'Настройки', action: () => navigateTo('settings') });
+    // Actions
+    cmds.push({ cat: 'Действия', icon: 'user-plus', label: 'Добавить кандидата', action: () => openModal('addCandidateModal') });
+    cmds.push({ cat: 'Действия', icon: 'plus', label: 'Создать вакансию', action: () => openCreateVacancyModal() });
+    cmds.push({ cat: 'Действия', icon: 'inbox', label: 'Разобрать новые отклики', hint: `${candidates.filter(c=>c.stage==='new').length} новых`, action: () => { navigateTo('candidates'); setTimeout(()=>applySavedFilter('new'),50); } });
+    cmds.push({ cat: 'Действия', icon: 'check', label: 'Все новые → в скрининг', hint: 'bulk', action: () => { candidates.filter(c=>c.stage==='new').forEach(c=>{c.stage='screening';c.daysInStage=0}); showToast('success','Bulk','Все новые переведены в скрининг'); if(currentPage==='candidates')renderCandidates(); } });
+    // Candidate actions
+    candidates.slice(0, 20).forEach(c => {
+        cmds.push({ cat: 'Кандидаты', icon: 'user', label: `${c.firstName} ${c.lastName}`, hint: `${getStageLabel(c.stage)} · ${vacancies.find(v=>v.id===c.vacancyId)?.title||''}`, action: () => openCandidateModal(c.id) });
+    });
+    // Filter by query
+    if (ql) cmds = cmds.filter(c => c.label.toLowerCase().includes(ql) || (c.hint||'').toLowerCase().includes(ql));
+    return cmds.slice(0, 15);
+}
+
+function renderCmdResults(q) {
+    const cmds = getCommands(q);
+    if (cmds.length === 0) { cmdResults.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3);font-size:.85rem">Ничего не найдено</div>'; return; }
+    let html = '';
+    let lastCat = '';
+    cmds.forEach((c, i) => {
+        if (c.cat !== lastCat) { html += `<div class="cmd-group-label">${c.cat}</div>`; lastCat = c.cat; }
+        html += `<div class="cmd-item ${i===cmdHI?'highlighted':''}" data-cmd-idx="${i}">${ic(c.icon)} <span class="cmd-label">${c.label}</span>${c.hint?`<span class="cmd-hint">${c.hint}</span>`:''}</div>`;
+    });
+    cmdResults.innerHTML = html;
+    cmdResults.querySelectorAll('.cmd-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const idx = parseInt(item.dataset.cmdIdx);
+            closeCmdPalette();
+            cmds[idx]?.action();
+        });
+    });
+}
+
+function openCmdPalette() {
+    cmdOverlay.classList.add('active');
+    cmdInput.value = '';
+    cmdHI = -1;
+    renderCmdResults('');
+    setTimeout(() => cmdInput.focus(), 50);
+}
+
+function closeCmdPalette() {
+    cmdOverlay.classList.remove('active');
+    cmdInput.value = '';
+}
+
+cmdInput.addEventListener('input', () => { cmdHI = -1; renderCmdResults(cmdInput.value); });
+cmdInput.addEventListener('keydown', e => {
+    const items = cmdResults.querySelectorAll('.cmd-item');
+    if (e.key === 'ArrowDown') { e.preventDefault(); cmdHI = Math.min(cmdHI+1, items.length-1); items.forEach((it,i)=>it.classList.toggle('highlighted',i===cmdHI)); items[cmdHI]?.scrollIntoView({block:'nearest'}); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); cmdHI = Math.max(cmdHI-1, 0); items.forEach((it,i)=>it.classList.toggle('highlighted',i===cmdHI)); items[cmdHI]?.scrollIntoView({block:'nearest'}); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (cmdHI >= 0 && items[cmdHI]) items[cmdHI].click(); }
+    else if (e.key === 'Escape') { closeCmdPalette(); }
+});
+cmdOverlay.addEventListener('click', e => { if (e.target === cmdOverlay) closeCmdPalette(); });
+
 // ===== Keyboard Shortcuts =====
 document.addEventListener('keydown', e => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); globalSearchInput.focus(); globalSearchInput.select(); }
-    if (e.key === 'Escape') { const m = document.querySelector('.modal.active'); if (m) { m.classList.remove('active'); return; } document.getElementById('notificationsPanel').classList.remove('active'); document.getElementById('quickActionsPanel').classList.remove('active'); }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (cmdOverlay.classList.contains('active')) closeCmdPalette();
+        else openCmdPalette();
+    }
+    if (e.key === 'Escape') {
+        if (cmdOverlay.classList.contains('active')) { closeCmdPalette(); return; }
+        const m = document.querySelector('.modal.active');
+        if (m) { m.classList.remove('active'); return; }
+        document.getElementById('notificationsPanel').classList.remove('active');
+        document.getElementById('quickActionsPanel').classList.remove('active');
+    }
 });
