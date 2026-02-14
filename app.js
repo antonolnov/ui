@@ -99,12 +99,30 @@ function renderDashboard() {
                     <div class="activity-content"><div class="activity-text"><strong>${a.action}</strong>: ${a.target}</div><div class="activity-time">${formatTime(a.timestamp)}</div></div>
                 </div>`).join('')}</div></div></div>
         </div>
-        <div class="card mt-4"><div class="card-header"><h3>${ic('alert-triangle')} Требуют внимания</h3></div><div class="card-body"><div class="stats-grid">
-            <div class="stat-card"><div class="stat-value text-danger">${candidates.filter(c => c.urgent).length}</div><div class="stat-label">Срочные кандидаты</div></div>
-            <div class="stat-card"><div class="stat-value text-warning">${candidates.filter(c => !c.nextStep && c.stage !== 'rejected' && c.stage !== 'hired').length}</div><div class="stat-label">Без следующего шага</div></div>
-            <div class="stat-card"><div class="stat-value text-warning">3</div><div class="stat-label">Ждут фидбек 3+ дня</div></div>
-            <div class="stat-card"><div class="stat-value">2</div><div class="stat-label">Возможные дубли</div></div>
-        </div></div></div>`;
+        <div class="dashboard-grid mt-4">
+            <div class="card"><div class="card-header"><h3>${ic('calendar')} Интервью сегодня</h3><button class="btn btn-sm btn-outline" onclick="navigateTo('interviews')">Все интервью</button></div><div class="card-body">
+                ${interviews.filter(i => i.date === '2025-01-27').length === 0 ? '<p class="text-muted">Нет интервью на сегодня</p>' :
+                `<div style="display:flex;flex-direction:column;gap:10px">${interviews.filter(i => i.date === '2025-01-27').sort((a,b) => a.time.localeCompare(b.time)).map(iv => {
+                    const c = candidates.find(x => x.id === iv.candidateId);
+                    const v = vacancies.find(x => x.id === iv.vacancyId);
+                    const ivrs = iv.interviewers.map(id => hiringManagers.find(m => m.id === id));
+                    return `<div class="priority-item info" style="cursor:pointer" onclick="openCandidateModal(${c.id})">
+                        <div style="min-width:50px;text-align:center;font-weight:700;font-size:1rem;color:var(--primary)">${iv.time}</div>
+                        <div class="priority-content">
+                            <div class="priority-title">${c.firstName} ${c.lastName}</div>
+                            <div class="priority-meta"><span>${getInterviewTypeLabel(iv.type)}</span><span>${v.title}</span><span>${getFormatLabel(iv.format)}</span></div>
+                        </div>
+                        <div style="display:flex;gap:-4px">${ivrs.map(i => ava(i.name, 24)).join('')}</div>
+                    </div>`;
+                }).join('')}</div>`}
+            </div></div>
+            <div class="card"><div class="card-header"><h3>${ic('alert-triangle')} Требуют внимания</h3></div><div class="card-body"><div class="stats-grid" style="grid-template-columns:1fr 1fr">
+                <div class="stat-card"><div class="stat-value text-danger">${candidates.filter(c => c.urgent).length}</div><div class="stat-label">Срочные кандидаты</div></div>
+                <div class="stat-card"><div class="stat-value text-warning">${candidates.filter(c => !c.nextStep && c.stage !== 'rejected' && c.stage !== 'hired').length}</div><div class="stat-label">Без следующего шага</div></div>
+                <div class="stat-card"><div class="stat-value text-warning">3</div><div class="stat-label">Ждут фидбек 3+ дня</div></div>
+                <div class="stat-card" style="cursor:pointer" onclick="navigateTo('candidates');setTimeout(()=>{document.getElementById('stageFilter').value='new';filterCandidates()},100)"><div class="stat-value text-primary">${candidates.filter(c => c.stage === 'new').length}</div><div class="stat-label">Новых откликов → Разобрать</div></div>
+            </div></div></div>
+        </div>`;
 }
 
 // ===== Vacancies =====
@@ -170,18 +188,105 @@ function openVacancyModal(id) {
 }
 
 // ===== Candidates =====
+let candidatesViewMode = 'table'; // 'table' or 'triage'
+
 function renderCandidates() {
     const page = document.getElementById('candidates-page');
+    const newCount = candidates.filter(c => c.stage === 'new').length;
     page.innerHTML = `
-        <div class="page-header"><h1>Кандидаты</h1><div class="page-actions"><button class="btn btn-outline" onclick="showToast('info','Экспорт','Экспорт списка')">${ic('download')} Экспорт</button><button class="btn btn-primary" onclick="openModal('addCandidateModal')">${ic('user-plus')} Добавить</button></div></div>
-        <div class="candidates-toolbar"><div class="candidates-filters">
+        <div class="page-header"><h1>Кандидаты</h1><div class="page-actions">
+            <div class="interviews-view-toggle">
+                <button class="view-toggle-btn ${candidatesViewMode === 'table' ? 'active' : ''}" data-cview="table" title="Таблица">${ic('list','icon-sm')}</button>
+                <button class="view-toggle-btn ${candidatesViewMode === 'triage' ? 'active' : ''}" data-cview="triage" title="Разбор откликов" style="position:relative">${ic('inbox','icon-sm')}${newCount > 0 ? `<span style="position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:.55rem;padding:1px 4px;border-radius:var(--radius-full);font-weight:700">${newCount}</span>` : ''}</button>
+            </div>
+            <button class="btn btn-outline" onclick="showToast('info','Экспорт','Экспорт списка')">${ic('download')} Экспорт</button>
+            <button class="btn btn-primary" onclick="openModal('addCandidateModal')">${ic('user-plus')} Добавить</button>
+        </div></div>
+        <div id="candidatesViewContent">${candidatesViewMode === 'triage' ? renderTriageView() : renderTableView()}</div>`;
+    page.querySelectorAll('[data-cview]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            page.querySelectorAll('[data-cview]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            candidatesViewMode = btn.dataset.cview;
+            document.getElementById('candidatesViewContent').innerHTML = candidatesViewMode === 'triage' ? renderTriageView() : renderTableView();
+        });
+    });
+    const sel = document.getElementById('addCandidateVacancy');
+    if (sel) sel.innerHTML = vacancies.filter(v => v.status === 'active').map(v => `<option value="${v.id}">${v.title}</option>`).join('');
+}
+
+function renderTableView() {
+    return `<div class="candidates-toolbar"><div class="candidates-filters">
             <select class="filter-select" id="vacancyFilter" onchange="filterCandidates()"><option value="">Все вакансии</option>${vacancies.filter(v => v.status !== 'closed').map(v => `<option value="${v.id}">${v.title}</option>`).join('')}</select>
             <select class="filter-select" id="stageFilter" onchange="filterCandidates()"><option value="">Все этапы</option>${pipelineStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}<option value="rejected">Отказ</option></select>
             <select class="filter-select" id="sourceFilter" onchange="filterCandidates()"><option value="">Все источники</option>${sources.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}</select>
         </div><div class="search-box" style="width:260px;border:1px solid var(--border)">${ic('search')}<input type="text" placeholder="Поиск..." id="candidateSearch" oninput="filterCandidates()"></div></div>
         <div class="candidates-table-wrapper"><table class="candidates-table"><thead><tr><th>Кандидат</th><th>Вакансия</th><th>Этап</th><th>Источник</th><th>Ожидания</th><th>Дней</th><th>Действия</th></tr></thead><tbody id="candidatesTableBody">${renderCandidateRows(candidates.filter(c => c.stage !== 'rejected'))}</tbody></table></div>`;
-    const sel = document.getElementById('addCandidateVacancy');
-    if (sel) sel.innerHTML = vacancies.filter(v => v.status === 'active').map(v => `<option value="${v.id}">${v.title}</option>`).join('');
+}
+
+function renderTriageView() {
+    const newCandidates = candidates.filter(c => c.stage === 'new');
+    if (newCandidates.length === 0) {
+        return `<div class="card"><div class="card-body"><div class="empty-state">${ic('check','icon-lg')}<h3>Все отклики разобраны!</h3><p>Новых кандидатов на рассмотрение нет</p></div></div></div>`;
+    }
+    return `<div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+        <p class="text-muted">${newCandidates.length} новых откликов для разбора</p>
+        <div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-outline" onclick="triageBatchAction('screening')">${ic('check','icon-sm')} Все в скрининг</button>
+        </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">${newCandidates.map(c => {
+        const v = vacancies.find(x => x.id === c.vacancyId);
+        const sl = sources.find(s => s.value === c.source)?.label || c.source;
+        return `<div class="card" style="overflow:hidden"><div style="padding:18px;display:flex;gap:16px;align-items:flex-start">
+            <div style="flex-shrink:0">${ava(c.firstName + ' ' + c.lastName, 48)}</div>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <span style="font-weight:600;font-size:1rem">${c.firstName} ${c.lastName}</span>
+                    <span class="stage-badge new">Новый</span>
+                    ${c.urgent ? `<span style="color:var(--danger);font-size:.75rem;font-weight:600">${ic('flame','icon-sm')} Срочный</span>` : ''}
+                </div>
+                <div class="text-muted" style="font-size:.85rem;margin-bottom:8px">${c.currentCompany || ''} · ${c.experience} · ${sl}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${(c.skills || []).map(s => `<span class="kanban-card-tag">${s}</span>`).join('')}</div>
+                <div style="display:flex;gap:16px;font-size:.8rem;color:var(--text-2)">
+                    <span>${ic('briefcase','icon-sm')} ${v ? v.title : '-'}</span>
+                    <span>${ic('dollar-sign','icon-sm')} ${c.salaryExpectation || '-'}</span>
+                    <span>${ic('map-pin','icon-sm')} ${c.location || '-'}</span>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+                <button class="btn btn-sm btn-success" onclick="event.stopPropagation();triageAction(${c.id},'screening')">${ic('check','icon-sm')} В скрининг</button>
+                <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openCandidateModal(${c.id})">${ic('eye','icon-sm')} Подробнее</button>
+                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openRejectModal(${c.id})">${ic('x','icon-sm')} Отказ</button>
+            </div>
+        </div></div>`;
+    }).join('')}</div>`;
+}
+
+function triageAction(candidateId, newStage) {
+    const c = candidates.find(x => x.id === candidateId);
+    if (!c) return;
+    const os = c.stage;
+    c.stage = newStage;
+    c.daysInStage = 0;
+    c.updatedAt = new Date().toISOString().split('T')[0];
+    if (!c.timeline) c.timeline = [];
+    c.timeline.push({ date: c.updatedAt, event: getStageLabel(newStage), type: 'stage', description: `${getStageLabel(os)} → ${getStageLabel(newStage)}` });
+    showToast('success', 'Скрининг', `${c.firstName} ${c.lastName} переведен в скрининг`);
+    renderCandidates();
+}
+
+function triageBatchAction(newStage) {
+    const newCandidates = candidates.filter(c => c.stage === 'new');
+    newCandidates.forEach(c => {
+        c.stage = newStage;
+        c.daysInStage = 0;
+        c.updatedAt = new Date().toISOString().split('T')[0];
+        if (!c.timeline) c.timeline = [];
+        c.timeline.push({ date: c.updatedAt, event: getStageLabel(newStage), type: 'stage', description: `Новый → ${getStageLabel(newStage)} (массовое действие)` });
+    });
+    showToast('success', 'Массовое действие', `${newCandidates.length} кандидатов переведены в ${getStageLabel(newStage)}`);
+    renderCandidates();
 }
 
 function renderCandidateRows(list) {
@@ -296,7 +401,34 @@ function renderInterviewsList() {
 function renderInterviewsCalendar() {
     const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
     const hours = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
-    return `<div class="interviews-calendar"><div class="calendar-header"><div class="calendar-nav"><button>${ic('chevron-left','icon-sm')}</button><span class="calendar-title">27 янв - 2 фев 2025</span><button>${ic('chevron-right','icon-sm')}</button></div><button class="btn btn-sm btn-outline">Сегодня</button></div><div class="calendar-week"><div class="calendar-day-header"></div>${days.map((d, i) => `<div class="calendar-day-header ${i === 0 ? 'today' : ''}">${d}</div>`).join('')}</div><div class="calendar-week"><div class="calendar-times">${hours.map(h => `<div class="calendar-time">${h}</div>`).join('')}</div>${days.map((d, di) => `<div class="calendar-day">${di === 0 ? '<div class="calendar-event hr" style="top:60px;height:60px">10:00 HR</div><div class="calendar-event final" style="top:120px;height:60px">11:00 Финал</div><div class="calendar-event hr" style="top:300px;height:45px">14:00 HR</div><div class="calendar-event" style="top:420px;height:60px">16:00 Финал</div>' : ''}${di === 1 ? '<div class="calendar-event technical" style="top:120px;height:90px">11:00 Техн.</div><div class="calendar-event technical" style="top:360px;height:90px">15:00 Техн.</div>' : ''}</div>`).join('')}</div></div>`;
+    // Generate week dates starting from Mon 2025-01-27
+    const weekStart = new Date('2025-01-27');
+    const weekDates = Array.from({length: 7}, (_, i) => {
+        const d = new Date(weekStart); d.setDate(d.getDate() + i);
+        return d.toISOString().split('T')[0];
+    });
+    const dayLabels = weekDates.map((d, i) => {
+        const dt = new Date(d);
+        return `${days[i]} ${dt.getDate()}`;
+    });
+
+    return `<div class="interviews-calendar"><div class="calendar-header"><div class="calendar-nav"><button>${ic('chevron-left','icon-sm')}</button><span class="calendar-title">27 янв — 2 фев 2025</span><button>${ic('chevron-right','icon-sm')}</button></div><button class="btn btn-sm btn-outline">Сегодня</button></div>
+    <div class="calendar-week"><div class="calendar-day-header"></div>${dayLabels.map((d, i) => `<div class="calendar-day-header ${i === 0 ? 'today' : ''}">${d}</div>`).join('')}</div>
+    <div class="calendar-week"><div class="calendar-times">${hours.map(h => `<div class="calendar-time">${h}</div>`).join('')}</div>
+    ${weekDates.map(wd => {
+        const dayInterviews = interviews.filter(iv => iv.date === wd);
+        return `<div class="calendar-day">${dayInterviews.map(iv => {
+            const c = candidates.find(x => x.id === iv.candidateId);
+            const [hh, mm] = iv.time.split(':').map(Number);
+            const topPx = (hh - 9) * 60 + mm;
+            const heightPx = Math.max(iv.duration * (60/60), 40);
+            const typeClass = iv.type === 'technical' ? 'technical' : iv.type === 'hr' ? 'hr' : iv.type === 'final' ? 'final' : '';
+            return `<div class="calendar-event ${typeClass}" style="top:${topPx}px;height:${heightPx}px" onclick="openCandidateModal(${c.id})" title="${c.firstName} ${c.lastName} — ${getInterviewTypeLabel(iv.type)}">
+                ${iv.time} ${c.firstName[0]}.${c.lastName[0]}. ${getInterviewTypeLabel(iv.type).split(' ')[0]}
+            </div>`;
+        }).join('')}</div>`;
+    }).join('')}
+    </div></div>`;
 }
 
 function getInterviewTypeLabel(t) { return { screening:'Скрининг', hr:'HR интервью', technical:'Техническое', final:'Финальное', manager:'С менеджером' }[t] || t; }
@@ -324,7 +456,14 @@ function renderOffers() {
     page.innerHTML = `<div class="page-header"><h1>Офферы</h1></div><div class="offers-grid">${offers.map(o => {
         const c = candidates.find(x => x.id === o.candidateId); const v = vacancies.find(x => x.id === o.vacancyId);
         return `<div class="offer-card ${o.status}"><div class="offer-header"><div class="offer-candidate-info">${ava(c.firstName + ' ' + c.lastName, 44)}<div><div class="offer-candidate-name">${c.firstName} ${c.lastName}</div><div class="offer-position">${v.title}</div></div></div><span class="offer-status-badge ${o.status}">${getOfferStatusLabel(o.status)}</span></div>
-        <div class="offer-body"><div class="offer-details"><div><div class="offer-detail-label">Оклад</div><div class="offer-detail-value">${o.salary}</div></div><div><div class="offer-detail-label">Дата выхода</div><div class="offer-detail-value">${formatDate(o.startDate)}</div></div><div><div class="offer-detail-label">Формат</div><div class="offer-detail-value">${getWorkFormatLabel(o.workFormat)}</div></div><div><div class="offer-detail-label">До</div><div class="offer-detail-value">${formatDate(o.expiryDate)}</div></div></div></div>
+        <div class="offer-body"><div class="offer-details"><div><div class="offer-detail-label">Оклад</div><div class="offer-detail-value">${o.salary}</div></div><div><div class="offer-detail-label">Дата выхода</div><div class="offer-detail-value">${formatDate(o.startDate)}</div></div><div><div class="offer-detail-label">Формат</div><div class="offer-detail-value">${getWorkFormatLabel(o.workFormat)}</div></div><div><div class="offer-detail-label">До</div><div class="offer-detail-value">${formatDate(o.expiryDate)}</div></div></div>
+            ${o.approvalStatus ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)"><div style="font-size:.7rem;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Согласование</div><div style="display:flex;gap:8px;flex-wrap:wrap">${Object.entries(o.approvalStatus).map(([role, status]) => {
+                const label = {hr_director:'HR-директор',hiring_manager:'Менеджер',cfo:'CFO'}[role] || role;
+                const color = status === 'approved' ? 'var(--success)' : 'var(--warning)';
+                const bg = status === 'approved' ? 'var(--success-light)' : 'var(--warning-light)';
+                const icon = status === 'approved' ? 'check' : 'clock';
+                return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:.7rem;font-weight:500;background:${bg};color:${color}">${ic(icon,'icon-sm')} ${label}</span>`;
+            }).join('')}</div></div>` : ''}</div>
         <div class="offer-footer">${o.status === 'pending' ? `<button class="btn btn-sm btn-success" onclick="updateOfferStatus(${o.id},'sent')">${ic('send','icon-sm')} Отправить</button>` : ''}${o.status === 'sent' ? `<button class="btn btn-sm btn-success" onclick="updateOfferStatus(${o.id},'accepted')">${ic('check','icon-sm')} Принят</button><button class="btn btn-sm btn-danger" onclick="updateOfferStatus(${o.id},'rejected')">${ic('x','icon-sm')} Отклонен</button>` : ''}<button class="btn btn-sm btn-outline" onclick="openCandidateModal(${c.id})">${ic('user','icon-sm')} Кандидат</button></div></div>`;
     }).join('')}</div>`;
 }
@@ -416,7 +555,30 @@ function openCandidateModal(id) {
                 <div class="stats-grid"><div class="stat-card"><div class="stat-value">${c.daysInStage}</div><div class="stat-label">Дней на этапе</div></div><div class="stat-card"><div class="stat-value">${c.feedbacks?.length || 0}</div><div class="stat-label">Фидбеков</div></div><div class="stat-card"><div class="stat-value">${c.rating || '-'}</div><div class="stat-label">Рейтинг</div></div></div>
             </div>
             <div class="candidate-tab-content" id="tab-timeline"><div class="timeline">${(c.timeline || []).slice().reverse().map(i => `<div class="timeline-item ${i.type === 'completed' ? 'completed' : ''}"><div class="timeline-date">${formatDate(i.date)}</div><div class="timeline-title">${i.event}</div><div class="timeline-content">${i.description}</div></div>`).join('') || '<p class="text-muted">Пусто</p>'}</div></div>
-            <div class="candidate-tab-content" id="tab-feedback">${(c.feedbacks || []).map(fb => { const iv = hiringManagers.find(m => m.id === fb.interviewerId); return `<div class="feedback-card"><div class="feedback-header"><div class="feedback-author">${ava(iv?.name || '?', 30)}<div><div class="feedback-author-name">${iv?.name || '?'}</div><div class="feedback-author-role">${iv?.role || ''} · ${formatDate(fb.date)}</div></div></div><span class="feedback-rating ${fb.rating >= 4 ? 'positive' : fb.rating >= 3 ? 'neutral' : 'negative'}">${fb.rating}/5 - ${getRecommendationLabel(fb.recommendation)}</span></div><div class="feedback-body">${fb.strengths ? `<p><strong>Сильные:</strong> ${fb.strengths}</p>` : ''}${fb.weaknesses ? `<p><strong>Зоны развития:</strong> ${fb.weaknesses}</p>` : ''}${fb.comment ? `<p>${fb.comment}</p>` : ''}</div></div>`; }).join('') || '<p class="text-muted">Нет фидбеков</p>'}
+            <div class="candidate-tab-content" id="tab-feedback">
+                ${(c.feedbacks && c.feedbacks.length > 0) ? `
+                <div class="card mb-4" style="border:2px solid var(--primary-light)"><div style="padding:14px 16px">
+                    <div style="font-weight:600;font-size:.85rem;margin-bottom:10px">Сводка по ${c.feedbacks.length} фидбекам</div>
+                    <div style="display:flex;gap:14px;margin-bottom:10px">
+                        <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--primary)">${(c.feedbacks.reduce((sum, fb) => sum + fb.rating, 0) / c.feedbacks.length).toFixed(1)}</div><div class="text-muted" style="font-size:.7rem">Средний рейтинг</div></div>
+                        <div style="flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${c.feedbacks.map(fb => {
+                            const iv = hiringManagers.find(m => m.id === fb.interviewerId);
+                            const color = fb.rating >= 4 ? 'var(--success)' : fb.rating >= 3 ? 'var(--warning)' : 'var(--danger)';
+                            return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:var(--radius-full);font-size:.7rem;border:1px solid var(--border)">${ava(iv?.name || '?', 18)} <span style="color:${color};font-weight:600">${fb.rating}/5</span></span>`;
+                        }).join('')}</div>
+                    </div>
+                    <div style="font-size:.8rem;color:var(--text-2)">Рекомендация: <strong>${(() => {
+                        const recs = c.feedbacks.map(fb => fb.recommendation);
+                        const hires = recs.filter(r => r === 'hire').length;
+                        const total = recs.length;
+                        if (hires === total) return '<span style="color:var(--success)">Единогласно: Нанять</span>';
+                        if (hires > total / 2) return '<span style="color:var(--success)">Большинство: Нанять</span>';
+                        const nexts = recs.filter(r => r === 'next_stage').length;
+                        if (nexts > 0) return '<span style="color:var(--info)">Продолжить отбор</span>';
+                        return '<span style="color:var(--warning)">Нет консенсуса</span>';
+                    })()}</strong></div>
+                </div></div>` : ''}
+                ${(c.feedbacks || []).map(fb => { const iv = hiringManagers.find(m => m.id === fb.interviewerId); return `<div class="feedback-card"><div class="feedback-header"><div class="feedback-author">${ava(iv?.name || '?', 30)}<div><div class="feedback-author-name">${iv?.name || '?'}</div><div class="feedback-author-role">${iv?.role || ''} · ${formatDate(fb.date)}</div></div></div><span class="feedback-rating ${fb.rating >= 4 ? 'positive' : fb.rating >= 3 ? 'neutral' : 'negative'}">${fb.rating}/5 — ${getRecommendationLabel(fb.recommendation)}</span></div><div class="feedback-body">${fb.strengths ? `<p><strong>Сильные:</strong> ${fb.strengths}</p>` : ''}${fb.weaknesses ? `<p><strong>Зоны развития:</strong> ${fb.weaknesses}</p>` : ''}${fb.comment ? `<p>${fb.comment}</p>` : ''}</div></div>`; }).join('') || '<p class="text-muted">Нет фидбеков</p>'}
                 <button class="btn btn-outline mt-4" onclick="openFeedbackModal(${c.id});closeModal('candidateModal')">${ic('plus')} Добавить фидбек</button></div>
             <div class="candidate-tab-content" id="tab-notes">${(c.notes || []).map(n => `<div class="feedback-card"><div class="feedback-header"><div class="feedback-author"><div><div class="feedback-author-name">${n.author}</div><div class="feedback-author-role">${formatDate(n.date)}</div></div></div></div><div class="feedback-body">${n.text}</div></div>`).join('') || '<p class="text-muted">Нет заметок</p>'}
                 <div class="note-input"><input type="text" placeholder="Добавить заметку..." id="newNoteInput"><button class="btn btn-primary" onclick="addNote(${c.id})">${ic('plus')}</button></div></div>
