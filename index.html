@@ -3,718 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WorkHere ATS - Система управления кандидатами</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>WorkHere ATS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Sidebar Navigation -->
+<!-- ===== SVG Icon Sprite ===== -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+<symbol id="i-clipboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="i-columns" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+<symbol id="i-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+<symbol id="i-user-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+<symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+<symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+<symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="i-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></symbol>
+<symbol id="i-alert-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+<symbol id="i-alert-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-map-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-dollar-sign" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42z"/><path d="M7 7h.01"/></symbol>
+<symbol id="i-external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="m22 2-11 11"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2"/></symbol>
+<symbol id="i-hash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-more-vertical" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+<symbol id="i-plus-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></symbol>
+<symbol id="i-percent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
+<symbol id="i-user-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></symbol>
+<symbol id="i-trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+<symbol id="i-calendar-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></symbol>
+<symbol id="i-briefcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+</svg>
+<!-- ===== End Icon Sprite ===== -->
+
+    <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="logo">
-                <i class="fas fa-briefcase"></i>
+                <svg class="icon" style="width:28px;height:28px"><use href="#i-briefcase"/></svg>
                 <span>WorkHere</span>
             </div>
         </div>
         <ul class="nav-menu">
-            <li class="nav-item active" data-page="dashboard">
-                <i class="fas fa-home"></i>
-                <span>Дашборд</span>
-            </li>
-            <li class="nav-item" data-page="vacancies">
-                <i class="fas fa-clipboard-list"></i>
-                <span>Вакансии</span>
-                <span class="badge">12</span>
-            </li>
-            <li class="nav-item" data-page="candidates">
-                <i class="fas fa-users"></i>
-                <span>Кандидаты</span>
-                <span class="badge">156</span>
-            </li>
-            <li class="nav-item" data-page="pipeline">
-                <i class="fas fa-columns"></i>
-                <span>Воронка</span>
-            </li>
-            <li class="nav-item" data-page="interviews">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Интервью</span>
-                <span class="badge urgent">5</span>
-            </li>
-            <li class="nav-item" data-page="talent-pool">
-                <i class="fas fa-star"></i>
-                <span>Талант-пул</span>
-            </li>
-            <li class="nav-item" data-page="offers">
-                <i class="fas fa-file-signature"></i>
-                <span>Офферы</span>
-                <span class="badge success">3</span>
-            </li>
-            <li class="nav-item" data-page="analytics">
-                <i class="fas fa-chart-bar"></i>
-                <span>Аналитика</span>
-            </li>
-            <li class="nav-item" data-page="settings">
-                <i class="fas fa-cog"></i>
-                <span>Настройки</span>
-            </li>
+            <li class="nav-item active" data-page="dashboard"><svg class="icon"><use href="#i-home"/></svg><span>Дашборд</span></li>
+            <li class="nav-item" data-page="vacancies"><svg class="icon"><use href="#i-clipboard"/></svg><span>Вакансии</span><span class="badge">12</span></li>
+            <li class="nav-item" data-page="candidates"><svg class="icon"><use href="#i-users"/></svg><span>Кандидаты</span><span class="badge">156</span></li>
+            <li class="nav-item" data-page="pipeline"><svg class="icon"><use href="#i-columns"/></svg><span>Воронка</span></li>
+            <li class="nav-item" data-page="interviews"><svg class="icon"><use href="#i-calendar"/></svg><span>Интервью</span><span class="badge urgent">5</span></li>
+            <li class="nav-item" data-page="talent-pool"><svg class="icon"><use href="#i-star"/></svg><span>Талант-пул</span></li>
+            <li class="nav-item" data-page="offers"><svg class="icon"><use href="#i-file-text"/></svg><span>Офферы</span><span class="badge success">3</span></li>
+            <li class="nav-item" data-page="analytics"><svg class="icon"><use href="#i-bar-chart"/></svg><span>Аналитика</span></li>
+            <li class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg><span>Настройки</span></li>
         </ul>
-        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Свернуть меню">
-            <i class="fas fa-chevron-left"></i>
-        </button>
         <div class="sidebar-footer">
-            <div class="user-info">
-                <img src="https://i.pravatar.cc/40?img=1" alt="User" class="user-avatar">
-                <div class="user-details">
-                    <span class="user-name">Мария Иванова</span>
-                    <span class="user-role">Рекрутер</span>
-                </div>
-            </div>
+            <div class="user-info" id="sidebarUser"></div>
         </div>
     </nav>
 
     <!-- Main Content -->
     <main class="main-content">
-        <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <button class="menu-toggle" id="menuToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
+                <button class="menu-toggle" id="menuToggle"><svg class="icon"><use href="#i-menu"/></svg></button>
                 <div class="search-box" id="searchBox">
-                    <i class="fas fa-search"></i>
+                    <svg class="icon"><use href="#i-search"/></svg>
                     <input type="text" placeholder="Поиск кандидатов, вакансий..." id="globalSearch" autocomplete="off">
-                    <div class="search-shortcut"><kbd>⌘</kbd><kbd>K</kbd></div>
+                    <div class="search-shortcut"><kbd>Ctrl</kbd><kbd>K</kbd></div>
                     <div class="search-dropdown" id="searchDropdown"></div>
                 </div>
             </div>
             <div class="header-right">
-                <button class="header-btn" id="addCandidateBtn" title="Добавить кандидата">
-                    <i class="fas fa-user-plus"></i>
-                </button>
-                <button class="header-btn notification-btn" id="notificationsBtn">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-count">7</span>
-                </button>
-                <button class="header-btn" id="quickActionsBtn" title="Быстрые действия">
-                    <i class="fas fa-bolt"></i>
-                </button>
-                <button class="theme-toggle" id="themeToggle" title="Переключить тему">
-                    <i class="fas fa-moon"></i>
-                </button>
+                <button class="header-btn" id="addCandidateBtn" title="Добавить кандидата"><svg class="icon"><use href="#i-user-plus"/></svg></button>
+                <button class="header-btn" id="notificationsBtn"><svg class="icon"><use href="#i-bell"/></svg><span class="notification-count">7</span></button>
+                <button class="header-btn" id="quickActionsBtn" title="Быстрые действия"><svg class="icon"><use href="#i-zap"/></svg></button>
+                <button class="header-btn" id="themeToggle" title="Тема"><svg class="icon" id="themeIcon"><use href="#i-moon"/></svg></button>
             </div>
         </header>
 
-        <!-- Page Container -->
         <div class="page-container" id="pageContainer">
-            <!-- Dashboard Page -->
-            <div class="page active" id="dashboard-page">
-                <!-- Morning priorities section will be rendered by JS -->
-            </div>
-
-            <!-- Vacancies Page -->
-            <div class="page" id="vacancies-page">
-                <!-- Vacancies will be rendered by JS -->
-            </div>
-
-            <!-- Candidates Page -->
-            <div class="page" id="candidates-page">
-                <!-- Candidates will be rendered by JS -->
-            </div>
-
-            <!-- Pipeline Page -->
-            <div class="page" id="pipeline-page">
-                <!-- Kanban board will be rendered by JS -->
-            </div>
-
-            <!-- Interviews Page -->
-            <div class="page" id="interviews-page">
-                <!-- Interviews will be rendered by JS -->
-            </div>
-
-            <!-- Talent Pool Page -->
-            <div class="page" id="talent-pool-page">
-                <!-- Talent pool will be rendered by JS -->
-            </div>
-
-            <!-- Offers Page -->
-            <div class="page" id="offers-page">
-                <!-- Offers will be rendered by JS -->
-            </div>
-
-            <!-- Analytics Page -->
-            <div class="page" id="analytics-page">
-                <!-- Analytics will be rendered by JS -->
-            </div>
-
-            <!-- Settings Page -->
-            <div class="page" id="settings-page">
-                <!-- Settings will be rendered by JS -->
-            </div>
+            <div class="page active" id="dashboard-page"></div>
+            <div class="page" id="vacancies-page"></div>
+            <div class="page" id="candidates-page"></div>
+            <div class="page" id="pipeline-page"></div>
+            <div class="page" id="interviews-page"></div>
+            <div class="page" id="talent-pool-page"></div>
+            <div class="page" id="offers-page"></div>
+            <div class="page" id="analytics-page"></div>
+            <div class="page" id="settings-page"></div>
         </div>
     </main>
 
     <!-- Modals -->
-    <!-- Candidate Detail Modal -->
-    <div class="modal" id="candidateModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2 id="candidateModalTitle">Детали кандидата</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body" id="candidateModalBody">
-                <!-- Content will be rendered by JS -->
-            </div>
-        </div>
-    </div>
+    <div class="modal" id="candidateModal"><div class="modal-overlay"></div><div class="modal-content modal-large"><div class="modal-header"><h2 id="candidateModalTitle">Кандидат</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body" id="candidateModalBody"></div></div></div>
+    <div class="modal" id="addCandidateModal"><div class="modal-overlay"></div><div class="modal-content"><div class="modal-header"><h2>Добавить кандидата</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body"><form id="addCandidateForm"><div class="form-row"><div class="form-group"><label>Имя *</label><input type="text" name="firstName" required></div><div class="form-group"><label>Фамилия *</label><input type="text" name="lastName" required></div></div><div class="form-row"><div class="form-group"><label>Email *</label><input type="email" name="email" required></div><div class="form-group"><label>Телефон</label><input type="tel" name="phone"></div></div><div class="form-group"><label>Вакансия *</label><select name="vacancyId" required id="addCandidateVacancy"></select></div><div class="form-group"><label>Источник</label><select name="source"><option value="hh">HeadHunter</option><option value="linkedin">LinkedIn</option><option value="telegram">Telegram</option><option value="referral">Реферал</option><option value="direct">Прямой отклик</option><option value="other">Другое</option></select></div><div class="form-group"><label>Зарплатные ожидания</label><input type="text" name="salaryExpectation" placeholder="150 000 - 200 000 ₽"></div><div class="form-group"><label>Заметки</label><textarea name="notes" rows="3" placeholder="Первичные заметки..."></textarea></div><div class="form-actions"><button type="button" class="btn btn-secondary" data-close-modal>Отмена</button><button type="submit" class="btn btn-primary">Добавить</button></div></form></div></div></div>
+    <div class="modal" id="vacancyModal"><div class="modal-overlay"></div><div class="modal-content modal-large"><div class="modal-header"><h2 id="vacancyModalTitle">Вакансия</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body" id="vacancyModalBody"></div></div></div>
+    <div class="modal" id="scheduleInterviewModal"><div class="modal-overlay"></div><div class="modal-content"><div class="modal-header"><h2>Назначить интервью</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body"><form id="scheduleInterviewForm"><input type="hidden" name="candidateId" id="interviewCandidateId"><div class="form-group"><label>Кандидат</label><input type="text" id="interviewCandidateName" readonly class="readonly-input"></div><div class="form-group"><label>Тип интервью *</label><select name="interviewType" required><option value="screening">Скрининг</option><option value="technical">Техническое</option><option value="hr">HR интервью</option><option value="final">Финальное</option><option value="manager">С менеджером</option></select></div><div class="form-row"><div class="form-group"><label>Дата *</label><input type="date" name="date" required></div><div class="form-group"><label>Время *</label><input type="time" name="time" required></div></div><div class="form-group"><label>Длительность</label><select name="duration"><option value="30">30 минут</option><option value="45">45 минут</option><option value="60" selected>1 час</option><option value="90">1.5 часа</option></select></div><div class="form-group"><label>Формат</label><select name="format"><option value="online">Онлайн</option><option value="offline">Офис</option><option value="phone">Телефон</option></select></div><div class="form-group"><label>Интервьюеры</label><div class="checkbox-group"><label class="checkbox-item"><input type="checkbox" name="interviewers" value="1"><span>Алексей Петров (Tech Lead)</span></label><label class="checkbox-item"><input type="checkbox" name="interviewers" value="2"><span>Ольга Смирнова (HR)</span></label><label class="checkbox-item"><input type="checkbox" name="interviewers" value="3"><span>Дмитрий Козлов (CTO)</span></label><label class="checkbox-item"><input type="checkbox" name="interviewers" value="4"><span>Анна Федорова (PM)</span></label></div></div><div class="form-group"><label>Заметки</label><textarea name="notes" rows="2" placeholder="На что обратить внимание..."></textarea></div><div class="form-actions"><button type="button" class="btn btn-secondary" data-close-modal>Отмена</button><button type="submit" class="btn btn-primary">Назначить</button></div></form></div></div></div>
+    <div class="modal" id="feedbackModal"><div class="modal-overlay"></div><div class="modal-content"><div class="modal-header"><h2>Фидбек</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body"><form id="feedbackForm"><input type="hidden" name="candidateId" id="feedbackCandidateId"><input type="hidden" name="interviewId" id="feedbackInterviewId"><div class="form-group"><label>Кандидат</label><input type="text" id="feedbackCandidateName" readonly class="readonly-input"></div><div class="form-group"><label>Оценка *</label><div class="rating-group"><label class="rating-item"><input type="radio" name="rating" value="1" required><span class="rating-label negative">Точно нет</span></label><label class="rating-item"><input type="radio" name="rating" value="2"><span class="rating-label warning">Скорее нет</span></label><label class="rating-item"><input type="radio" name="rating" value="3"><span class="rating-label neutral">Возможно</span></label><label class="rating-item"><input type="radio" name="rating" value="4"><span class="rating-label positive">Скорее да</span></label><label class="rating-item"><input type="radio" name="rating" value="5"><span class="rating-label success">Точно да</span></label></div></div><div class="form-group"><label>Сильные стороны</label><textarea name="strengths" rows="2"></textarea></div><div class="form-group"><label>Зоны развития</label><textarea name="weaknesses" rows="2"></textarea></div><div class="form-group"><label>Рекомендация</label><select name="recommendation"><option value="hire">Нанять</option><option value="next_stage">Следующий этап</option><option value="hold">Отложить</option><option value="reject">Отказать</option></select></div><div class="form-group"><label>Комментарий</label><textarea name="comment" rows="3"></textarea></div><div class="form-actions"><button type="button" class="btn btn-secondary" data-close-modal>Отмена</button><button type="submit" class="btn btn-primary">Сохранить</button></div></form></div></div></div>
+    <div class="modal" id="rejectModal"><div class="modal-overlay"></div><div class="modal-content"><div class="modal-header"><h2>Отказ кандидату</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body"><form id="rejectForm"><input type="hidden" name="candidateId" id="rejectCandidateId"><div class="form-group"><label>Кандидат</label><input type="text" id="rejectCandidateName" readonly class="readonly-input"></div><div class="form-group"><label>Причина *</label><select name="reason" required><option value="">Выберите</option><option value="skills">Не соответствует по навыкам</option><option value="experience">Мало опыта</option><option value="overqualified">Переквалифицирован</option><option value="salary">Зарплата выше бюджета</option><option value="culture">Не по культуре</option><option value="location">Не подходит локация</option><option value="other_offer">Принял другой оффер</option><option value="no_response">Не отвечает</option><option value="other">Другое</option></select></div><div class="form-group"><label>Детали</label><textarea name="details" rows="2"></textarea></div><div class="form-group"><label class="checkbox-item"><input type="checkbox" name="addToPool"><span>Добавить в талант-пул</span></label></div><div class="form-group"><label class="checkbox-item"><input type="checkbox" name="sendEmail" checked><span>Уведомить кандидата</span></label></div><div class="form-actions"><button type="button" class="btn btn-secondary" data-close-modal>Отмена</button><button type="submit" class="btn btn-danger">Отказать</button></div></form></div></div></div>
+    <div class="modal" id="offerModal"><div class="modal-overlay"></div><div class="modal-content"><div class="modal-header"><h2>Создать оффер</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body"><form id="offerForm"><input type="hidden" name="candidateId" id="offerCandidateId"><div class="form-group"><label>Кандидат</label><input type="text" id="offerCandidateName" readonly class="readonly-input"></div><div class="form-group"><label>Позиция</label><input type="text" id="offerPosition" readonly class="readonly-input"></div><div class="form-row"><div class="form-group"><label>Оклад (gross) *</label><input type="text" name="salary" required placeholder="200 000 ₽"></div><div class="form-group"><label>Бонус</label><input type="text" name="bonus" placeholder="20%"></div></div><div class="form-row"><div class="form-group"><label>Дата выхода *</label><input type="date" name="startDate" required></div><div class="form-group"><label>Испытательный</label><select name="probation"><option value="0">Без испытательного</option><option value="1">1 мес</option><option value="3" selected>3 мес</option><option value="6">6 мес</option></select></div></div><div class="form-group"><label>Формат</label><select name="workFormat"><option value="office">Офис</option><option value="remote">Удаленно</option><option value="hybrid">Гибрид</option></select></div><div class="form-group"><label>Допы</label><textarea name="benefits" rows="2" placeholder="ДМС, обучение..."></textarea></div><div class="form-group"><label>Срок оффера *</label><input type="date" name="expiryDate" required></div><div class="form-group"><label>Согласующие</label><div class="checkbox-group"><label class="checkbox-item"><input type="checkbox" name="approvers" value="hr_director"><span>HR-директор</span></label><label class="checkbox-item"><input type="checkbox" name="approvers" value="hiring_manager"><span>Нанимающий менеджер</span></label><label class="checkbox-item"><input type="checkbox" name="approvers" value="cfo"><span>Фин. директор</span></label></div></div><div class="form-actions"><button type="button" class="btn btn-secondary" data-close-modal>Отмена</button><button type="submit" class="btn btn-success">Создать оффер</button></div></form></div></div></div>
+    <div class="modal" id="moveStageModal"><div class="modal-overlay"></div><div class="modal-content modal-small"><div class="modal-header"><h2>Перевести на этап</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body"><form id="moveStageForm"><input type="hidden" name="candidateId" id="moveStageCandidateId"><div class="form-group"><label>Новый этап</label><select name="stage" id="moveStageSelect"><option value="new">Новый</option><option value="screening">Скрининг</option><option value="interview">Интервью</option><option value="technical">Техническое</option><option value="final">Финал</option><option value="offer">Оффер</option><option value="hired">Нанят</option></select></div><div class="form-group"><label>Комментарий</label><textarea name="comment" rows="2"></textarea></div><div class="form-actions"><button type="button" class="btn btn-secondary" data-close-modal>Отмена</button><button type="submit" class="btn btn-primary">Перевести</button></div></form></div></div></div>
+    <div class="modal" id="createVacancyModal"><div class="modal-overlay"></div><div class="modal-content"><div class="modal-header"><h2>Новая вакансия</h2><button class="modal-close" data-close-modal>&times;</button></div><div class="modal-body"><form id="createVacancyForm"><div class="form-group"><label>Название *</label><input type="text" name="title" required placeholder="Senior Frontend Developer"></div><div class="form-row"><div class="form-group"><label>Отдел *</label><select name="department" required id="vacancyDepartment"></select></div><div class="form-group"><label>Приоритет</label><select name="priority"><option value="low">Низкий</option><option value="medium" selected>Средний</option><option value="high">Высокий</option></select></div></div><div class="form-row"><div class="form-group"><label>Зарплата от</label><input type="number" name="salaryMin" placeholder="150000"></div><div class="form-group"><label>Зарплата до</label><input type="number" name="salaryMax" placeholder="250000"></div></div><div class="form-row"><div class="form-group"><label>Локация</label><input type="text" name="location" placeholder="Москва"></div><div class="form-group"><label>Формат</label><select name="workFormat"><option value="office">Офис</option><option value="remote">Удаленно</option><option value="hybrid" selected>Гибрид</option></select></div></div><div class="form-group"><label>Менеджер</label><select name="managerId" id="vacancyManager"></select></div><div class="form-group"><label>Дедлайн</label><input type="date" name="deadline"></div><div class="form-group"><label>Описание</label><textarea name="description" rows="3"></textarea></div><div class="form-group"><label>Требования (через запятую)</label><input type="text" name="requirements" placeholder="React, TypeScript, 3+ лет"></div><div class="form-group"><label class="checkbox-item"><input type="checkbox" name="urgent"><span>Срочная</span></label></div><div class="form-actions"><button type="button" class="btn btn-secondary" data-close-modal>Отмена</button><button type="submit" class="btn btn-primary">Создать</button></div></form></div></div></div>
 
-    <!-- Add Candidate Modal -->
-    <div class="modal" id="addCandidateModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Добавить кандидата</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="addCandidateForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Имя *</label>
-                            <input type="text" name="firstName" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Фамилия *</label>
-                            <input type="text" name="lastName" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Email *</label>
-                            <input type="email" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Телефон</label>
-                            <input type="tel" name="phone">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Вакансия *</label>
-                        <select name="vacancyId" required id="addCandidateVacancy">
-                            <!-- Options will be populated by JS -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Источник</label>
-                        <select name="source">
-                            <option value="hh">HeadHunter</option>
-                            <option value="linkedin">LinkedIn</option>
-                            <option value="telegram">Telegram</option>
-                            <option value="referral">Реферал</option>
-                            <option value="direct">Прямой отклик</option>
-                            <option value="other">Другое</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Зарплатные ожидания</label>
-                        <input type="text" name="salaryExpectation" placeholder="150 000 - 200 000 ₽">
-                    </div>
-                    <div class="form-group">
-                        <label>Резюме (ссылка)</label>
-                        <input type="url" name="resumeUrl" placeholder="https://...">
-                    </div>
-                    <div class="form-group">
-                        <label>Заметки</label>
-                        <textarea name="notes" rows="3" placeholder="Первичные заметки о кандидате..."></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
-                        <button type="submit" class="btn btn-primary">Добавить</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Vacancy Detail Modal -->
-    <div class="modal" id="vacancyModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2 id="vacancyModalTitle">Детали вакансии</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body" id="vacancyModalBody">
-                <!-- Content will be rendered by JS -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Schedule Interview Modal -->
-    <div class="modal" id="scheduleInterviewModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Назначить интервью</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="scheduleInterviewForm">
-                    <input type="hidden" name="candidateId" id="interviewCandidateId">
-                    <div class="form-group">
-                        <label>Кандидат</label>
-                        <input type="text" id="interviewCandidateName" readonly class="readonly-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Тип интервью *</label>
-                        <select name="interviewType" required>
-                            <option value="screening">Скрининг (телефонный)</option>
-                            <option value="technical">Техническое интервью</option>
-                            <option value="hr">HR интервью</option>
-                            <option value="final">Финальное интервью</option>
-                            <option value="manager">С нанимающим менеджером</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Дата *</label>
-                            <input type="date" name="date" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Время *</label>
-                            <input type="time" name="time" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Длительность</label>
-                        <select name="duration">
-                            <option value="30">30 минут</option>
-                            <option value="45">45 минут</option>
-                            <option value="60" selected>1 час</option>
-                            <option value="90">1.5 часа</option>
-                            <option value="120">2 часа</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Интервьюеры</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="interviewers" value="1">
-                                <span>Алексей Петров (Tech Lead)</span>
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="interviewers" value="2">
-                                <span>Ольга Смирнова (HR)</span>
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="interviewers" value="3">
-                                <span>Дмитрий Козлов (CTO)</span>
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="interviewers" value="4">
-                                <span>Анна Федорова (PM)</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Формат</label>
-                        <select name="format">
-                            <option value="online">Онлайн (Zoom/Google Meet)</option>
-                            <option value="offline">Офис</option>
-                            <option value="phone">Телефонный звонок</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Заметки для интервьюеров</label>
-                        <textarea name="notes" rows="3" placeholder="На что обратить внимание..."></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
-                        <button type="submit" class="btn btn-primary">Назначить</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Feedback Modal -->
-    <div class="modal" id="feedbackModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Оставить фидбек</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="feedbackForm">
-                    <input type="hidden" name="candidateId" id="feedbackCandidateId">
-                    <input type="hidden" name="interviewId" id="feedbackInterviewId">
-                    <div class="form-group">
-                        <label>Кандидат</label>
-                        <input type="text" id="feedbackCandidateName" readonly class="readonly-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Общая оценка *</label>
-                        <div class="rating-group">
-                            <label class="rating-item">
-                                <input type="radio" name="rating" value="1" required>
-                                <span class="rating-label negative">Точно нет</span>
-                            </label>
-                            <label class="rating-item">
-                                <input type="radio" name="rating" value="2">
-                                <span class="rating-label warning">Скорее нет</span>
-                            </label>
-                            <label class="rating-item">
-                                <input type="radio" name="rating" value="3">
-                                <span class="rating-label neutral">Возможно</span>
-                            </label>
-                            <label class="rating-item">
-                                <input type="radio" name="rating" value="4">
-                                <span class="rating-label positive">Скорее да</span>
-                            </label>
-                            <label class="rating-item">
-                                <input type="radio" name="rating" value="5">
-                                <span class="rating-label success">Точно да</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Сильные стороны</label>
-                        <textarea name="strengths" rows="3" placeholder="Что понравилось..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Зоны развития / Риски</label>
-                        <textarea name="weaknesses" rows="3" placeholder="На что обратить внимание..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Рекомендация</label>
-                        <select name="recommendation">
-                            <option value="hire">Нанять</option>
-                            <option value="next_stage">Продолжить (следующий этап)</option>
-                            <option value="hold">Отложить / в пул</option>
-                            <option value="reject">Отказать</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Детальный комментарий</label>
-                        <textarea name="comment" rows="4" placeholder="Подробный фидбек..."></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
-                        <button type="submit" class="btn btn-primary">Сохранить фидбек</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Reject Modal -->
-    <div class="modal" id="rejectModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Отказ кандидату</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="rejectForm">
-                    <input type="hidden" name="candidateId" id="rejectCandidateId">
-                    <div class="form-group">
-                        <label>Кандидат</label>
-                        <input type="text" id="rejectCandidateName" readonly class="readonly-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Причина отказа *</label>
-                        <select name="reason" required>
-                            <option value="">Выберите причину</option>
-                            <option value="skills">Не соответствует требованиям по навыкам</option>
-                            <option value="experience">Недостаточно опыта</option>
-                            <option value="overqualified">Переквалифицирован</option>
-                            <option value="salary">Зарплатные ожидания выше бюджета</option>
-                            <option value="culture">Не подходит по культуре</option>
-                            <option value="location">Не подходит локация/формат</option>
-                            <option value="timing">Не подходит по срокам выхода</option>
-                            <option value="communication">Проблемы с коммуникацией</option>
-                            <option value="other_offer">Принял другой оффер</option>
-                            <option value="withdrew">Кандидат отказался</option>
-                            <option value="no_response">Не отвечает</option>
-                            <option value="other">Другое</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Детали (внутренний комментарий)</label>
-                        <textarea name="details" rows="3" placeholder="Подробности для команды..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="addToPool">
-                            <span>Добавить в талант-пул для будущих вакансий</span>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="sendEmail" checked>
-                            <span>Отправить уведомление кандидату</span>
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
-                        <button type="submit" class="btn btn-danger">Отказать</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Offer Modal -->
-    <div class="modal" id="offerModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Создать оффер</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="offerForm">
-                    <input type="hidden" name="candidateId" id="offerCandidateId">
-                    <div class="form-group">
-                        <label>Кандидат</label>
-                        <input type="text" id="offerCandidateName" readonly class="readonly-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Позиция</label>
-                        <input type="text" id="offerPosition" readonly class="readonly-input">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Оклад (gross) *</label>
-                            <input type="text" name="salary" required placeholder="200 000 ₽">
-                        </div>
-                        <div class="form-group">
-                            <label>Бонус</label>
-                            <input type="text" name="bonus" placeholder="Квартальный 20%">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Дата выхода *</label>
-                            <input type="date" name="startDate" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Испытательный срок</label>
-                            <select name="probation">
-                                <option value="0">Без испытательного</option>
-                                <option value="1">1 месяц</option>
-                                <option value="3" selected>3 месяца</option>
-                                <option value="6">6 месяцев</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Формат работы</label>
-                        <select name="workFormat">
-                            <option value="office">Офис</option>
-                            <option value="remote">Удаленно</option>
-                            <option value="hybrid">Гибрид</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Дополнительные условия</label>
-                        <textarea name="benefits" rows="3" placeholder="ДМС, обучение, оборудование..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Срок действия оффера *</label>
-                        <input type="date" name="expiryDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Согласующие</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="approvers" value="hr_director">
-                                <span>HR-директор</span>
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="approvers" value="hiring_manager">
-                                <span>Нанимающий менеджер</span>
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="approvers" value="cfo">
-                                <span>Финансовый директор</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
-                        <button type="submit" class="btn btn-success">Создать оффер</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Move Stage Modal -->
-    <div class="modal" id="moveStageModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content modal-small">
-            <div class="modal-header">
-                <h2>Перевести на этап</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="moveStageForm">
-                    <input type="hidden" name="candidateId" id="moveStageCandidateId">
-                    <div class="form-group">
-                        <label>Новый этап</label>
-                        <select name="stage" id="moveStageSelect">
-                            <option value="new">Новый</option>
-                            <option value="screening">Скрининг</option>
-                            <option value="interview">Интервью</option>
-                            <option value="technical">Техническое интервью</option>
-                            <option value="final">Финальное интервью</option>
-                            <option value="offer">Оффер</option>
-                            <option value="hired">Нанят</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Комментарий</label>
-                        <textarea name="comment" rows="2" placeholder="Причина перевода..."></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
-                        <button type="submit" class="btn btn-primary">Перевести</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create Vacancy Modal -->
-    <div class="modal" id="createVacancyModal">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Создать вакансию</h2>
-                <button class="modal-close" data-close-modal>&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="createVacancyForm">
-                    <div class="form-group">
-                        <label>Название вакансии *</label>
-                        <input type="text" name="title" required placeholder="Например: Senior Frontend Developer">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Отдел *</label>
-                            <select name="department" required id="vacancyDepartment">
-                                <!-- Populated by JS -->
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Приоритет</label>
-                            <select name="priority">
-                                <option value="low">Низкий</option>
-                                <option value="medium" selected>Средний</option>
-                                <option value="high">Высокий</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Зарплата от</label>
-                            <input type="number" name="salaryMin" placeholder="150000">
-                        </div>
-                        <div class="form-group">
-                            <label>Зарплата до</label>
-                            <input type="number" name="salaryMax" placeholder="250000">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Локация</label>
-                            <input type="text" name="location" placeholder="Москва / Удаленно">
-                        </div>
-                        <div class="form-group">
-                            <label>Формат работы</label>
-                            <select name="workFormat">
-                                <option value="office">Офис</option>
-                                <option value="remote">Удаленно</option>
-                                <option value="hybrid" selected>Гибрид</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Нанимающий менеджер</label>
-                        <select name="managerId" id="vacancyManager">
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Дедлайн</label>
-                        <input type="date" name="deadline">
-                    </div>
-                    <div class="form-group">
-                        <label>Описание</label>
-                        <textarea name="description" rows="3" placeholder="Описание вакансии..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Требования (через запятую)</label>
-                        <input type="text" name="requirements" placeholder="React 3+ лет, TypeScript, Unit testing">
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-item">
-                            <input type="checkbox" name="urgent">
-                            <span>Срочная вакансия</span>
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
-                        <button type="submit" class="btn btn-primary">Создать вакансию</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notifications Panel -->
+    <!-- Panels -->
     <div class="notifications-panel" id="notificationsPanel">
-        <div class="notifications-header">
-            <h3>Уведомления</h3>
-            <button class="btn btn-sm" id="markAllRead">Прочитать все</button>
-        </div>
-        <div class="notifications-list" id="notificationsList">
-            <!-- Will be populated by JS -->
-        </div>
+        <div class="notifications-header"><h3>Уведомления</h3><button class="btn btn-sm btn-secondary" id="markAllRead">Прочитать все</button></div>
+        <div class="notifications-list" id="notificationsList"></div>
     </div>
-
-    <!-- Quick Actions Panel -->
     <div class="quick-actions-panel" id="quickActionsPanel">
         <h3>Быстрые действия</h3>
         <div class="quick-actions-list">
-            <button class="quick-action-item" data-action="addCandidate">
-                <i class="fas fa-user-plus"></i>
-                <span>Добавить кандидата</span>
-            </button>
-            <button class="quick-action-item" data-action="newVacancy">
-                <i class="fas fa-plus-circle"></i>
-                <span>Создать вакансию</span>
-            </button>
-            <button class="quick-action-item" data-action="bulkEmail">
-                <i class="fas fa-envelope"></i>
-                <span>Массовая рассылка</span>
-            </button>
-            <button class="quick-action-item" data-action="exportReport">
-                <i class="fas fa-file-export"></i>
-                <span>Экспорт отчета</span>
-            </button>
-            <button class="quick-action-item" data-action="checkDuplicates">
-                <i class="fas fa-clone"></i>
-                <span>Проверить дубли</span>
-            </button>
+            <button class="quick-action-item" data-action="addCandidate"><svg class="icon"><use href="#i-user-plus"/></svg><span>Добавить кандидата</span></button>
+            <button class="quick-action-item" data-action="newVacancy"><svg class="icon"><use href="#i-plus-circle"/></svg><span>Создать вакансию</span></button>
+            <button class="quick-action-item" data-action="bulkEmail"><svg class="icon"><use href="#i-mail"/></svg><span>Массовая рассылка</span></button>
+            <button class="quick-action-item" data-action="exportReport"><svg class="icon"><use href="#i-share"/></svg><span>Экспорт отчета</span></button>
+            <button class="quick-action-item" data-action="checkDuplicates"><svg class="icon"><use href="#i-copy"/></svg><span>Проверить дубли</span></button>
         </div>
     </div>
 
-    <!-- Toast Notifications -->
+    <!-- Toast -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="data.js"></script>
