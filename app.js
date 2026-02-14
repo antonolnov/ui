@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initModals();
     initPanels();
     initForms();
+    initCreateVacancyForm();
     renderDashboard();
 });
 
@@ -231,7 +232,7 @@ function renderVacancies() {
         <div class="page-header">
             <h1>Вакансии</h1>
             <div class="page-actions">
-                <button class="btn btn-primary" onclick="showToast('info', 'Создание вакансии', 'Функция создания вакансии')">
+                <button class="btn btn-primary" onclick="openCreateVacancyModal()">
                     <i class="fas fa-plus"></i> Новая вакансия
                 </button>
             </div>
@@ -566,7 +567,9 @@ function filterCandidates() {
     document.getElementById('candidatesTableBody').innerHTML = renderCandidateRows(filtered);
 }
 
-// ===== Pipeline (Kanban) =====
+// ===== Pipeline (Kanban) with Drag & Drop =====
+let draggedCandidateId = null;
+
 function renderPipeline() {
     const page = document.getElementById('pipeline-page');
     
@@ -583,6 +586,8 @@ function renderPipeline() {
             ${renderKanbanColumns(candidates.filter(c => c.stage !== 'rejected' && c.stage !== 'hired'))}
         </div>
     `;
+
+    initKanbanDragDrop();
 }
 
 function renderKanbanColumns(candidatesList) {
@@ -593,12 +598,14 @@ function renderKanbanColumns(candidatesList) {
             <div class="kanban-column" data-stage="${stage.id}">
                 <div class="kanban-column-header">
                     <div class="kanban-column-title">
+                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${stage.color}; margin-right:6px;"></span>
                         ${stage.name}
                         <span class="kanban-column-count">${stageCandidates.length}</span>
                     </div>
                 </div>
-                <div class="kanban-column-body">
+                <div class="kanban-column-body" data-stage="${stage.id}">
                     ${stageCandidates.map(c => renderKanbanCard(c)).join('')}
+                    ${stageCandidates.length === 0 ? '<div class="empty-state" style="padding: 24px 12px;"><p style="font-size: 0.8rem;">Нет кандидатов</p></div>' : ''}
                 </div>
             </div>
         `;
@@ -609,8 +616,10 @@ function renderKanbanCard(candidate) {
     const vacancy = vacancies.find(v => v.id === candidate.vacancyId);
     
     return `
-        <div class="kanban-card ${candidate.urgent ? 'urgent' : ''}" onclick="openCandidateModal(${candidate.id})" draggable="true">
-            <div class="kanban-card-header">
+        <div class="kanban-card ${candidate.urgent ? 'urgent' : ''}" 
+             data-candidate-id="${candidate.id}" 
+             draggable="true">
+            <div class="kanban-card-header" onclick="openCandidateModal(${candidate.id})">
                 <img src="${candidate.avatar}" alt="" class="kanban-card-avatar">
                 <div>
                     <div class="kanban-card-name">${candidate.firstName} ${candidate.lastName}</div>
@@ -630,6 +639,81 @@ function renderKanbanCard(candidate) {
     `;
 }
 
+function initKanbanDragDrop() {
+    const board = document.getElementById('kanbanBoard');
+    if (!board) return;
+
+    board.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('.kanban-card');
+        if (!card) return;
+        draggedCandidateId = parseInt(card.dataset.candidateId);
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', draggedCandidateId);
+    });
+
+    board.addEventListener('dragend', (e) => {
+        const card = e.target.closest('.kanban-card');
+        if (card) card.classList.remove('dragging');
+        document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
+        draggedCandidateId = null;
+    });
+
+    board.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const column = e.target.closest('.kanban-column');
+        if (column) {
+            document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
+            column.classList.add('drag-over');
+        }
+    });
+
+    board.addEventListener('dragleave', (e) => {
+        const column = e.target.closest('.kanban-column');
+        if (column && !column.contains(e.relatedTarget)) {
+            column.classList.remove('drag-over');
+        }
+    });
+
+    board.addEventListener('drop', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
+        
+        const column = e.target.closest('.kanban-column');
+        if (!column || !draggedCandidateId) return;
+
+        const newStage = column.dataset.stage;
+        const candidate = candidates.find(c => c.id === draggedCandidateId);
+        if (!candidate || candidate.stage === newStage) return;
+
+        const oldStage = candidate.stage;
+        candidate.stage = newStage;
+        candidate.daysInStage = 0;
+        candidate.updatedAt = new Date().toISOString().split('T')[0];
+
+        if (!candidate.timeline) candidate.timeline = [];
+        candidate.timeline.push({
+            date: new Date().toISOString().split('T')[0],
+            event: getStageLabel(newStage),
+            type: 'stage',
+            description: `Переведен с ${getStageLabel(oldStage)} на ${getStageLabel(newStage)}`
+        });
+
+        showToast('success', 'Этап изменен', `${candidate.firstName} ${candidate.lastName} → ${getStageLabel(newStage)}`);
+
+        // Re-render preserving vacancy filter
+        const vacancySelect = document.getElementById('pipelineVacancySelect');
+        const currentFilter = vacancySelect ? vacancySelect.value : '';
+        let filtered = candidates.filter(c => c.stage !== 'rejected' && c.stage !== 'hired');
+        if (currentFilter) {
+            filtered = filtered.filter(c => c.vacancyId === parseInt(currentFilter));
+        }
+        document.getElementById('kanbanBoard').innerHTML = renderKanbanColumns(filtered);
+        initKanbanDragDrop();
+    });
+}
+
 function filterPipelineByVacancy(vacancyId) {
     const select = document.getElementById('pipelineVacancySelect');
     if (select && vacancyId) {
@@ -642,6 +726,7 @@ function filterPipelineByVacancy(vacancyId) {
     }
     
     document.getElementById('kanbanBoard').innerHTML = renderKanbanColumns(filtered);
+    initKanbanDragDrop();
 }
 
 // ===== Interviews =====
@@ -1013,14 +1098,18 @@ function renderAnalytics() {
                     <h3 class="chart-title">Воронка найма</h3>
                 </div>
                 <div class="funnel-chart">
-                    ${analyticsData.funnelData.map(item => {
+                    ${analyticsData.funnelData.map((item, idx) => {
                         const percent = (item.count / maxFunnel * 100);
+                        const colors = ['#4f46e5', '#60a5fa', '#818cf8', '#a78bfa', '#c084fc', '#34d399', '#10b981'];
+                        const prevCount = idx > 0 ? analyticsData.funnelData[idx - 1].count : null;
+                        const convRate = prevCount ? ((item.count / prevCount) * 100).toFixed(0) : null;
                         return `
                             <div class="funnel-stage-row">
                                 <div class="funnel-stage-label">${item.stage}</div>
                                 <div class="funnel-stage-bar-wrapper">
-                                    <div class="funnel-stage-bar" style="width: ${percent}%; background: var(--primary);">${item.count}</div>
+                                    <div class="funnel-stage-bar" style="width: ${percent}%; background: ${colors[idx] || colors[0]};">${item.count}</div>
                                 </div>
+                                <span class="text-muted" style="font-size:0.75rem; min-width:45px; text-align:right;">${convRate ? convRate + '%' : ''}</span>
                             </div>
                         `;
                     }).join('')}
@@ -1128,6 +1217,8 @@ function renderAnalytics() {
 }
 
 // ===== Settings =====
+let currentSettingsSection = 'profile';
+
 function renderSettings() {
     const page = document.getElementById('settings-page');
     
@@ -1159,8 +1250,35 @@ function renderSettings() {
             </div>
             
             <div class="settings-content" id="settingsContent">
+                ${renderSettingsSection('profile')}
+            </div>
+        </div>
+    `;
+    
+    // Settings nav
+    page.querySelectorAll('.settings-nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            page.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            currentSettingsSection = item.dataset.section;
+            document.getElementById('settingsContent').innerHTML = renderSettingsSection(currentSettingsSection);
+        });
+    });
+}
+
+function renderSettingsSection(section) {
+    switch(section) {
+        case 'profile':
+            return `
                 <div class="settings-section">
                     <h3>Профиль</h3>
+                    <div style="display:flex; align-items:center; gap:20px; margin-bottom:24px;">
+                        <img src="https://i.pravatar.cc/80?img=1" alt="" style="width:80px; height:80px; border-radius:50%; object-fit:cover;">
+                        <div>
+                            <button class="btn btn-outline btn-sm">Загрузить фото</button>
+                            <p class="text-muted" style="font-size:0.75rem; margin-top:4px;">JPG, PNG до 2 МБ</p>
+                        </div>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Имя</label>
@@ -1175,51 +1293,187 @@ function renderSettings() {
                         <label>Email</label>
                         <input type="email" value="maria.ivanova@workhere.com">
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Телефон</label>
+                            <input type="tel" value="+7 (999) 000-00-00">
+                        </div>
+                        <div class="form-group">
+                            <label>Telegram</label>
+                            <input type="text" value="@maria_hr">
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>Роль</label>
                         <input type="text" value="Рекрутер" readonly class="readonly-input">
                     </div>
                 </div>
-                
+                <div class="form-actions" style="border-top: none; padding-top: 0;">
+                    <button class="btn btn-primary" onclick="showToast('success', 'Сохранено', 'Профиль обновлен')">Сохранить</button>
+                </div>
+            `;
+
+        case 'notifications':
+            return `
                 <div class="settings-section">
-                    <h3>Настройки уведомлений</h3>
+                    <h3>Email-уведомления</h3>
                     <div class="checkbox-group">
-                        <label class="checkbox-item">
-                            <input type="checkbox" checked>
-                            <span>Новые отклики</span>
-                        </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" checked>
-                            <span>Напоминания об интервью</span>
-                        </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" checked>
-                            <span>Просроченные фидбеки</span>
-                        </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox">
-                            <span>Ежедневный дайджест</span>
-                        </label>
+                        <label class="checkbox-item"><input type="checkbox" checked><span>Новые отклики на мои вакансии</span></label>
+                        <label class="checkbox-item"><input type="checkbox" checked><span>Напоминания об интервью (за 1 час)</span></label>
+                        <label class="checkbox-item"><input type="checkbox" checked><span>Просроченные фидбеки (3+ дня)</span></label>
+                        <label class="checkbox-item"><input type="checkbox" checked><span>Изменения статуса оффера</span></label>
+                        <label class="checkbox-item"><input type="checkbox"><span>Ежедневный дайджест (утренний)</span></label>
+                        <label class="checkbox-item"><input type="checkbox"><span>Еженедельный отчет</span></label>
                     </div>
                 </div>
-                
+                <div class="settings-section">
+                    <h3>Push-уведомления в браузере</h3>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item"><input type="checkbox" checked><span>Срочные события</span></label>
+                        <label class="checkbox-item"><input type="checkbox" checked><span>Новые сообщения от кандидатов</span></label>
+                        <label class="checkbox-item"><input type="checkbox"><span>Все изменения по кандидатам</span></label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Telegram-уведомления</h3>
+                    <div class="form-group">
+                        <label>Telegram Bot</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" value="" placeholder="Нажмите для подключения..." readonly class="readonly-input" style="flex:1;">
+                            <button class="btn btn-outline" onclick="showToast('info', 'Telegram', 'Откройте бота @WorkHereBot в Telegram')">Подключить</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-actions" style="border-top: none; padding-top: 0;">
-                    <button class="btn btn-primary" onclick="showToast('success', 'Сохранено', 'Настройки успешно сохранены')">
-                        Сохранить изменения
+                    <button class="btn btn-primary" onclick="showToast('success', 'Сохранено', 'Настройки уведомлений обновлены')">Сохранить</button>
+                </div>
+            `;
+
+        case 'pipeline':
+            return `
+                <div class="settings-section">
+                    <h3>Этапы воронки</h3>
+                    <p class="text-muted mb-4" style="font-size:0.875rem;">Настройте этапы для процесса найма. Порядок можно менять перетаскиванием.</p>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${pipelineStages.map((stage, i) => `
+                            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-tertiary); border-radius:var(--border-radius); border:1px solid var(--border-color);">
+                                <i class="fas fa-grip-vertical text-muted" style="cursor:grab;"></i>
+                                <span style="width:12px; height:12px; border-radius:50%; background:${stage.color}; flex-shrink:0;"></span>
+                                <input type="text" value="${stage.name}" style="flex:1; border:none; background:transparent; font-size:0.875rem; color:var(--text-primary); outline:none;">
+                                <span class="text-muted" style="font-size:0.75rem;">Этап ${i + 1}</span>
+                                ${stage.id !== 'new' && stage.id !== 'hired' ? '<button class="action-btn danger" style="width:28px; height:28px;"><i class="fas fa-times" style="font-size:0.7rem;"></i></button>' : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-outline btn-sm mt-4" onclick="showToast('info', 'Этапы', 'Функция добавления нового этапа')">
+                        <i class="fas fa-plus"></i> Добавить этап
                     </button>
                 </div>
-            </div>
-        </div>
-    `;
-    
-    // Settings nav
-    page.querySelectorAll('.settings-nav-item').forEach(item => {
-        item.addEventListener('click', () => {
-            page.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            showToast('info', 'Раздел', `Переход в раздел: ${item.textContent.trim()}`);
-        });
-    });
+                <div class="form-actions" style="border-top: none; padding-top: 0;">
+                    <button class="btn btn-primary" onclick="showToast('success', 'Сохранено', 'Этапы воронки обновлены')">Сохранить</button>
+                </div>
+            `;
+
+        case 'templates':
+            return `
+                <div class="settings-section">
+                    <h3>Шаблоны писем</h3>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        ${[
+                            { name: 'Приглашение на скрининг', uses: 45 },
+                            { name: 'Приглашение на интервью', uses: 38 },
+                            { name: 'Приглашение на техническое', uses: 22 },
+                            { name: 'Отказ (общий)', uses: 67 },
+                            { name: 'Отказ (после интервью)', uses: 31 },
+                            { name: 'Отправка оффера', uses: 12 }
+                        ].map(t => `
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:var(--bg-tertiary); border-radius:var(--border-radius); border:1px solid var(--border-color);">
+                                <div>
+                                    <div style="font-weight:500;">${t.name}</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Использовано ${t.uses} раз</div>
+                                </div>
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn btn-outline btn-sm" onclick="showToast('info', 'Шаблон', 'Редактирование шаблона')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline btn-sm" onclick="showToast('info', 'Шаблон', 'Предпросмотр шаблона')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-outline btn-sm mt-4" onclick="showToast('info', 'Шаблоны', 'Создание нового шаблона')">
+                        <i class="fas fa-plus"></i> Новый шаблон
+                    </button>
+                </div>
+            `;
+
+        case 'integrations':
+            return `
+                <div class="settings-section">
+                    <h3>Подключенные интеграции</h3>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        ${[
+                            { name: 'HeadHunter', icon: 'fa-globe', status: 'connected', desc: 'Публикация вакансий, получение откликов' },
+                            { name: 'Google Calendar', icon: 'fa-calendar', status: 'connected', desc: 'Синхронизация интервью' },
+                            { name: 'Gmail', icon: 'fa-envelope', status: 'disconnected', desc: 'Отправка писем кандидатам' },
+                            { name: 'Telegram Bot', icon: 'fa-paper-plane', status: 'disconnected', desc: 'Уведомления и напоминания' },
+                            { name: 'Slack', icon: 'fa-hashtag', status: 'disconnected', desc: 'Уведомления для команды' },
+                            { name: 'Zoom', icon: 'fa-video', status: 'disconnected', desc: 'Видео-интервью' }
+                        ].map(i => `
+                            <div style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-tertiary); border-radius:var(--border-radius); border:1px solid var(--border-color);">
+                                <div style="width:44px; height:44px; border-radius:var(--border-radius); background:var(--bg-secondary); display:flex; align-items:center; justify-content:center; font-size:1.25rem; color:var(--text-secondary);"><i class="fas ${i.icon}"></i></div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:500;">${i.name}</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">${i.desc}</div>
+                                </div>
+                                ${i.status === 'connected' 
+                                    ? '<span class="stage-badge offer" style="font-size: 0.7rem;">Подключено</span><button class="btn btn-outline btn-sm">Настроить</button>' 
+                                    : '<button class="btn btn-primary btn-sm" onclick="showToast(\'info\', \'Интеграция\', \'Подключение ' + i.name + '\')">Подключить</button>'
+                                }
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+        case 'team':
+            return `
+                <div class="settings-section">
+                    <h3>Команда</h3>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        ${[
+                            { name: 'Мария Иванова', role: 'Рекрутер', email: 'maria@workhere.com', avatar: 'https://i.pravatar.cc/40?img=1', status: 'Онлайн' },
+                            { name: 'Ольга Смирнова', role: 'HR Director', email: 'olga@workhere.com', avatar: 'https://i.pravatar.cc/40?img=5', status: 'Онлайн' },
+                            { name: 'Алексей Петров', role: 'Tech Lead', email: 'alexey@workhere.com', avatar: 'https://i.pravatar.cc/40?img=11', status: 'Офлайн' },
+                            { name: 'Дмитрий Козлов', role: 'CTO', email: 'dmitry@workhere.com', avatar: 'https://i.pravatar.cc/40?img=12', status: 'Офлайн' },
+                            { name: 'Анна Федорова', role: 'Product Manager', email: 'anna@workhere.com', avatar: 'https://i.pravatar.cc/40?img=9', status: 'Онлайн' }
+                        ].map(m => `
+                            <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--bg-tertiary); border-radius:var(--border-radius); border:1px solid var(--border-color);">
+                                <img src="${m.avatar}" alt="" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                                <div style="flex:1;">
+                                    <div style="font-weight:500;">${m.name}</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">${m.role} · ${m.email}</div>
+                                </div>
+                                <span style="font-size:0.75rem; color: ${m.status === 'Онлайн' ? 'var(--success)' : 'var(--text-muted)'};">
+                                    <i class="fas fa-circle" style="font-size:0.5rem; margin-right:4px;"></i>${m.status}
+                                </span>
+                                <button class="btn btn-outline btn-sm">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-4" onclick="showToast('info', 'Команда', 'Отправка приглашения')">
+                        <i class="fas fa-user-plus"></i> Пригласить участника
+                    </button>
+                </div>
+            `;
+
+        default:
+            return '<p class="text-muted">Раздел в разработке</p>';
+    }
 }
 
 // ===== Candidate Detail Modal =====
@@ -1583,7 +1837,7 @@ function initPanels() {
                     openModal('addCandidateModal');
                     break;
                 case 'newVacancy':
-                    showToast('info', 'Создание вакансии', 'Функция создания вакансии');
+                    openCreateVacancyModal();
                     break;
                 case 'bulkEmail':
                     showToast('info', 'Массовая рассылка', 'Функция массовой рассылки');
@@ -1864,6 +2118,68 @@ function initForms() {
     });
 }
 
+// ===== Create Vacancy =====
+function openCreateVacancyModal() {
+    // Populate department select
+    const deptSelect = document.getElementById('vacancyDepartment');
+    if (deptSelect) {
+        deptSelect.innerHTML = departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    }
+    // Populate manager select
+    const mgrSelect = document.getElementById('vacancyManager');
+    if (mgrSelect) {
+        mgrSelect.innerHTML = hiringManagers.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+    }
+    // Default deadline 30 days from now
+    const deadlineInput = document.querySelector('#createVacancyForm input[name="deadline"]');
+    if (deadlineInput) {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        deadlineInput.value = d.toISOString().split('T')[0];
+    }
+    openModal('createVacancyModal');
+}
+
+// Create vacancy form submit (init in initForms)
+function initCreateVacancyForm() {
+    const form = document.getElementById('createVacancyForm');
+    if (!form) return;
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const newVacancy = {
+            id: vacancies.length + 100,
+            title: fd.get('title'),
+            department: parseInt(fd.get('department')),
+            managerId: parseInt(fd.get('managerId')),
+            status: 'active',
+            priority: fd.get('priority'),
+            urgent: !!fd.get('urgent'),
+            salary: {
+                min: parseInt(fd.get('salaryMin')) || 0,
+                max: parseInt(fd.get('salaryMax')) || 0,
+                currency: 'RUB'
+            },
+            location: fd.get('location') || 'Не указано',
+            workFormat: fd.get('workFormat'),
+            createdAt: new Date().toISOString().split('T')[0],
+            deadline: fd.get('deadline') || '',
+            description: fd.get('description') || '',
+            requirements: fd.get('requirements') ? fd.get('requirements').split(',').map(r => r.trim()).filter(Boolean) : [],
+            niceToHave: [],
+            candidatesCount: 0,
+            stages: { new: 0, screening: 0, interview: 0, technical: 0, final: 0, offer: 0, hired: 0 }
+        };
+        vacancies.push(newVacancy);
+        closeModal('createVacancyModal');
+        e.target.reset();
+        showToast('success', 'Вакансия создана', `${newVacancy.title} добавлена в список`);
+        if (currentPage === 'vacancies') {
+            renderVacancies();
+        }
+    });
+}
+
 // ===== Toast Notifications =====
 function showToast(type, title, message) {
     const container = document.getElementById('toastContainer');
@@ -1915,24 +2231,228 @@ function formatSalary(salary) {
     return `${(salary.min / 1000).toFixed(0)}-${(salary.max / 1000).toFixed(0)}k`;
 }
 
-// ===== Global Search =====
-document.getElementById('globalSearch').addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase();
-    if (query.length < 2) return;
-    
-    // Find matching candidates
-    const matchingCandidates = candidates.filter(c => 
-        `${c.firstName} ${c.lastName}`.toLowerCase().includes(query) ||
-        c.email.toLowerCase().includes(query)
+// ===== Global Search with Dropdown =====
+const globalSearchInput = document.getElementById('globalSearch');
+const searchDropdown = document.getElementById('searchDropdown');
+let searchHighlightIndex = -1;
+
+function highlightText(text, query) {
+    if (!query) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+}
+
+function renderSearchDropdown(query) {
+    if (!query || query.length < 1) {
+        searchDropdown.classList.remove('active');
+        searchHighlightIndex = -1;
+        return;
+    }
+
+    const q = query.toLowerCase();
+
+    const matchingCandidates = candidates.filter(c =>
+        `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        (c.skills || []).some(s => s.toLowerCase().includes(q))
     ).slice(0, 5);
-    
-    // Find matching vacancies
-    const matchingVacancies = vacancies.filter(v => 
-        v.title.toLowerCase().includes(query)
+
+    const matchingVacancies = vacancies.filter(v =>
+        v.title.toLowerCase().includes(q) ||
+        departments.find(d => d.id === v.department)?.name.toLowerCase().includes(q)
     ).slice(0, 3);
-    
-    // For now, just show toast with results count
-    if (matchingCandidates.length > 0 || matchingVacancies.length > 0) {
-        // Could show a dropdown here
+
+    if (matchingCandidates.length === 0 && matchingVacancies.length === 0) {
+        searchDropdown.innerHTML = `
+            <div class="search-dropdown-empty">
+                <i class="fas fa-search" style="font-size: 1.5rem; margin-bottom: 8px; display: block; opacity: 0.4;"></i>
+                Ничего не найдено по запросу «${query}»
+            </div>
+        `;
+        searchDropdown.classList.add('active');
+        return;
+    }
+
+    let html = '';
+
+    if (matchingCandidates.length > 0) {
+        html += `<div class="search-dropdown-section">
+            <div class="search-dropdown-label">Кандидаты</div>
+            ${matchingCandidates.map((c, i) => {
+                const vacancy = vacancies.find(v => v.id === c.vacancyId);
+                return `
+                    <div class="search-dropdown-item" data-type="candidate" data-id="${c.id}" data-index="${i}">
+                        <img src="${c.avatar}" alt="">
+                        <div class="search-item-info">
+                            <div class="search-item-title">${highlightText(`${c.firstName} ${c.lastName}`, query)}</div>
+                            <div class="search-item-subtitle">${vacancy ? vacancy.title : ''} · ${c.experience}</div>
+                        </div>
+                        <span class="stage-badge ${c.stage} search-item-badge">${getStageLabel(c.stage)}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>`;
+    }
+
+    if (matchingVacancies.length > 0) {
+        html += `<div class="search-dropdown-section">
+            <div class="search-dropdown-label">Вакансии</div>
+            ${matchingVacancies.map((v, i) => {
+                const dept = departments.find(d => d.id === v.department);
+                return `
+                    <div class="search-dropdown-item" data-type="vacancy" data-id="${v.id}" data-index="${matchingCandidates.length + i}">
+                        <div class="search-item-icon"><i class="fas fa-briefcase"></i></div>
+                        <div class="search-item-info">
+                            <div class="search-item-title">${highlightText(v.title, query)}</div>
+                            <div class="search-item-subtitle">${dept ? dept.name : ''} · ${v.candidatesCount} кандидатов</div>
+                        </div>
+                        <span class="vacancy-status ${v.status} search-item-badge">${getStatusLabel(v.status)}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>`;
+    }
+
+    html += `<div class="search-dropdown-hint">
+        <kbd>↑↓</kbd> навигация <kbd>Enter</kbd> перейти <kbd>Esc</kbd> закрыть
+    </div>`;
+
+    searchDropdown.innerHTML = html;
+    searchDropdown.classList.add('active');
+    searchHighlightIndex = -1;
+
+    // Click handlers on dropdown items
+    searchDropdown.querySelectorAll('.search-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const type = item.dataset.type;
+            const id = parseInt(item.dataset.id);
+            searchDropdown.classList.remove('active');
+            globalSearchInput.value = '';
+            globalSearchInput.blur();
+
+            if (type === 'candidate') {
+                openCandidateModal(id);
+            } else if (type === 'vacancy') {
+                openVacancyModal(id);
+            }
+        });
+    });
+}
+
+globalSearchInput.addEventListener('input', (e) => {
+    renderSearchDropdown(e.target.value);
+});
+
+globalSearchInput.addEventListener('focus', () => {
+    if (globalSearchInput.value.length >= 1) {
+        renderSearchDropdown(globalSearchInput.value);
     }
 });
+
+globalSearchInput.addEventListener('keydown', (e) => {
+    const items = searchDropdown.querySelectorAll('.search-dropdown-item');
+    if (!searchDropdown.classList.contains('active') || items.length === 0) {
+        if (e.key === 'Escape') {
+            globalSearchInput.blur();
+            searchDropdown.classList.remove('active');
+        }
+        return;
+    }
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        searchHighlightIndex = Math.min(searchHighlightIndex + 1, items.length - 1);
+        items.forEach((item, i) => item.classList.toggle('highlighted', i === searchHighlightIndex));
+        items[searchHighlightIndex]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        searchHighlightIndex = Math.max(searchHighlightIndex - 1, 0);
+        items.forEach((item, i) => item.classList.toggle('highlighted', i === searchHighlightIndex));
+        items[searchHighlightIndex]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (searchHighlightIndex >= 0 && items[searchHighlightIndex]) {
+            items[searchHighlightIndex].click();
+        }
+    } else if (e.key === 'Escape') {
+        searchDropdown.classList.remove('active');
+        globalSearchInput.blur();
+    }
+});
+
+// Close search dropdown on outside click
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#searchBox')) {
+        searchDropdown.classList.remove('active');
+    }
+});
+
+// ===== Keyboard Shortcuts =====
+document.addEventListener('keydown', (e) => {
+    // Cmd+K or Ctrl+K - Focus search
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        globalSearchInput.focus();
+        globalSearchInput.select();
+    }
+
+    // Escape - Close modals/panels
+    if (e.key === 'Escape') {
+        // Close active modal
+        const activeModal = document.querySelector('.modal.active');
+        if (activeModal) {
+            activeModal.classList.remove('active');
+            return;
+        }
+        // Close panels
+        document.getElementById('notificationsPanel').classList.remove('active');
+        document.getElementById('quickActionsPanel').classList.remove('active');
+    }
+});
+
+// ===== Dark Mode =====
+function initTheme() {
+    const saved = localStorage.getItem('workhere-theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = saved || (prefersDark ? 'dark' : 'light');
+    applyTheme(theme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('workhere-theme', theme);
+    const icon = document.querySelector('#themeToggle i');
+    if (icon) {
+        icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+}
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+initTheme();
+
+// Update keyboard shortcut hint for non-Mac
+if (navigator.platform && !navigator.platform.match(/Mac/)) {
+    const shortcutEl = document.querySelector('.search-shortcut');
+    if (shortcutEl) {
+        shortcutEl.innerHTML = '<kbd>Ctrl</kbd><kbd>K</kbd>';
+    }
+}
+
+// ===== Sidebar Collapse =====
+const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+if (sidebarCollapseBtn) {
+    const savedMini = localStorage.getItem('workhere-sidebar-mini');
+    if (savedMini === 'true') {
+        document.getElementById('sidebar').classList.add('mini');
+    }
+
+    sidebarCollapseBtn.addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('mini');
+        localStorage.setItem('workhere-sidebar-mini', sidebar.classList.contains('mini'));
+    });
+}
